@@ -1,5 +1,33 @@
 # Deployment
 
+## Fastest public link (~5 minutes, no code changes)
+
+**Render (free tier, few clicks):**
+
+1. Create a free account at render.com and connect your GitHub.
+2. Dashboard → **New → Blueprint** → pick this repository and branch. The
+   `render.yaml` at the repo root configures everything (root dir, build,
+   start, health check).
+3. Click Apply. When the deploy finishes you get
+   `https://disaster-dome-XXXX.onrender.com` — that's the link everyone opens.
+   The host creates the room there; players join by QR/code as usual.
+
+Notes: the free tier sleeps after ~15 min idle (first visit wakes it in ~30 s)
+and loses saved match history on redeploys. For league night reliability,
+upgrade the service to Starter and attach a 1 GB disk at `/data` with
+`DDD_DB_PATH=/data/ddd.sqlite`.
+
+**Fly.io (always-on, ~$3–5/mo):** install flyctl, then from `super-smash-bros/`:
+
+```bash
+fly launch --copy-config --no-deploy   # accepts fly.toml, pick an app name
+fly volumes create dome_data --size 1
+fly deploy
+```
+
+`fly.toml` + `Dockerfile` are already in this folder (WebSocket-safe settings,
+persistent volume, auto-stop disabled so live matches never get killed).
+
 ## Shape of the app
 
 - **One stateful Node process** (`apps/server`) — WebSockets + the 30 Hz sim +

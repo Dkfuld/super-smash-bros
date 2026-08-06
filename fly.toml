@@ -1,0 +1,26 @@
+# Fly.io config — deploy with:  fly launch --copy-config  (then: fly deploy)
+# Rename the app below or let `fly launch` pick a unique name.
+app = "disaster-dome"
+primary_region = "ewr"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8787"
+  DDD_DB_PATH = "/data/ddd.sqlite"
+
+[[mounts]]
+  source = "dome_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8787
+  force_https = true
+  auto_stop_machines = "off"     # keep WebSocket matches alive
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
