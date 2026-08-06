@@ -17,7 +17,7 @@
     "test": "npm run test --workspace packages/shared && npm run test --workspace apps/server",
     "test:e2e": "npm run test:e2e --workspace apps/client",
     "lint": "eslint .",
-    "typecheck": "tsc -b packages/shared apps/server apps/client",
+    "typecheck": "tsc -p packages/shared/tsconfig.json --noEmit && tsc -p apps/server/tsconfig.json && tsc -p apps/client/tsconfig.json",
     "format": "prettier --write \"**/*.{ts,tsx,json,md,css,html}\""
   },
   "devDependencies": {

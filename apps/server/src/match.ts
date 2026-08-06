@@ -953,7 +953,7 @@ export class Match {
   ): boolean {
     if (t.eliminated || this.tickNo < t.iframesUntil) return false;
     const shielded = this.hasEffect(t, "shield");
-    let dmg = shielded ? 0 : damage;
+    const dmg = shielded ? 0 : damage;
     let impulse = kb * this.settings.knockbackScale * this.effectMult(attacker, "knockbackDealtMult") * this.effectMult(t, "knockbackReceivedMult");
     if (shielded) impulse *= 0.25;
     if (t.hat && this.settings.makeLastPlaceSuffer) impulse *= 1.12;
@@ -1055,7 +1055,7 @@ export class Match {
 
   private tryPickup(f: Fighter): void {
     let best: Pickup | null = null;
-    let bestD = SIM.PICKUP_RADIUS;
+    let bestD: number = SIM.PICKUP_RADIUS;
     for (const pk of this.pickups) {
       if (pk.state !== "landed") continue;
       const d = Math.hypot(f.x - pk.x, f.z - pk.z);

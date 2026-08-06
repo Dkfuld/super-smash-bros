@@ -212,10 +212,12 @@ export class AiController {
       }
     }
 
-    // hunt
+    // hunt — dampened during the opening loot phase so matches don't start
+    // with instant spawn mobbing (the first ~30s is for exploration/weapons)
+    const lootPhase = w.tick < 30 * 30;
     for (const e of enemies) {
       const d = Math.hypot(e.x - me.x, e.z - me.z);
-      let s = this.traits.aggression * (1.2 - Math.min(1, d / 40));
+      let s = this.traits.aggression * (1.2 - Math.min(1, d / 40)) * (lootPhase ? 0.3 : 1);
       s += (1 - e.hp / e.maxHp) * 0.5; // finish weakened players
       if (e.id === this.grudge) s += this.traits.revenge * 0.7;
       if (e.hat) s += this.traits.hatHunter * 0.8;

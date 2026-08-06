@@ -7,8 +7,8 @@
     "composite": false,
     "declaration": false,
     "declarationMap": false,
-    "useDefineForClassFields": true
+    "useDefineForClassFields": true,
+    "types": ["vite/client"]
   },
-  "include": ["src", "e2e", "vite.config.ts", "playwright.config.ts"],
-  "references": [{ "path": "../../packages/shared" }]
+  "include": ["src"]
 }
