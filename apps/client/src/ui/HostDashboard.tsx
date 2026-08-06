@@ -265,9 +265,36 @@ export function HostDashboard({ demo }: { demo?: boolean }): JSX.Element {
   );
 }
 
+/** Preset bundles for one-tap match tuning. */
+const PRESETS: Record<string, Partial<MatchSettings>> = {
+  turbo: {
+    matchDurationTargetSec: 120,
+    suddenDeathAtSec: 60,
+    chaosLevel: 3,
+    weaponDropRate: 2,
+    hazardFrequency: 2,
+    zoneShrinkSpeed: 2,
+    aiDifficulty: 2,
+  },
+  chaos: {
+    chaosLevel: 3,
+    weaponDropRate: 2.5,
+    weaponRarityBoost: 0.8,
+    hazardFrequency: 2.5,
+    knockbackScale: 1.5,
+    powerUpRate: 2,
+    yippeeFrequency: 2,
+  },
+};
+
 function HostSettings({ settings: s }: { settings: MatchSettings }): JSX.Element {
   const [open, setOpen] = useState(false);
+  const [rev, setRev] = useState(0);
   const send = (patch: Partial<MatchSettings>): void => connection.send({ t: "hostSetSettings", settings: patch });
+  const applyPreset = (patch: Partial<MatchSettings>): void => {
+    send(patch);
+    setRev((n) => n + 1); // re-render sliders with new values
+  };
 
   if (!open) {
     return (
@@ -290,11 +317,13 @@ function HostSettings({ settings: s }: { settings: MatchSettings }): JSX.Element
   );
 
   return (
-    <div className="panel" style={{ maxWidth: "none" }}>
+    <div className="panel" style={{ maxWidth: "none" }} key={rev}>
       <div className="row" style={{ justifyContent: "space-between" }}>
         <strong style={{ fontSize: "0.9rem" }}>Match settings</strong>
         <div className="row">
-          <button className="btn small secondary" onClick={() => send(DEFAULT_SETTINGS)}>Reset</button>
+          <button className="btn small secondary" onClick={() => applyPreset(DEFAULT_SETTINGS)}>Reset</button>
+          <button className="btn small secondary" title="Short intense match (~2 min) — great for warm-ups and testing" onClick={() => applyPreset(PRESETS.turbo ?? {})}>⚡ Turbo</button>
+          <button className="btn small secondary" title="Maximum chaos" onClick={() => applyPreset(PRESETS.chaos ?? {})}>🌪 Chaos</button>
           <button className="btn small secondary" onClick={() => setOpen(false)}>✕</button>
         </div>
       </div>

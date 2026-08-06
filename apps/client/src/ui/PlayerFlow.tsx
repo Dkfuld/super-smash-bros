@@ -5,6 +5,7 @@ import { audio } from "../audio/audio";
 import { connection } from "../net/connection";
 import { CharacterPreview } from "./CharacterPreview";
 import { GameView } from "./GameView";
+import { Lobby3D } from "./Lobby3D";
 import { ResultsScreen } from "./Results";
 import { SettingsPanel } from "./SettingsPanel";
 import { vibrate } from "./settings";
@@ -120,6 +121,17 @@ export function PlayerFlow({ roomCode }: { roomCode: string }): JSX.Element {
         </div>
         {state.lastError && <p style={{ color: "var(--red)" }}>{state.lastError.message}</p>}
       </div>
+    );
+  }
+
+  // Ready → hang out in the 3D pregame lobby until the commissioner starts.
+  if (mySlot.ready && room) {
+    return (
+      <>
+        <Lobby3D slots={room.slots} mySlotIndex={mySlot.slotIndex} />
+        <SettingsPanel />
+        <ConnBadge status={state.status} rtt={state.rttMs} />
+      </>
     );
   }
 

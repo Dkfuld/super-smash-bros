@@ -15,9 +15,11 @@ real gaps, in rough priority order.
   (a stylized tumble-and-launch plays instead). Prop "physics reactions" are
   animated/cosmetic (chair/pizza hazards, breakable feel via VFX), not a full
   client rigid-body sim.
-- The pregame lobby is the customization screen + live host board, not a
-  walkable 3D backstage room. The intro cinematic is spotlight + announcer +
-  hat reveal on the arena camera rather than a fully choreographed cutscene.
+- The pregame lobby IS a walkable 3D space (players roam the Dome, practice
+  attack/dodge/jump, and see everyone who has joined) — but it uses the match
+  arena rather than a bespoke backstage room with pizza boxes and draft boards.
+  The intro cinematic is spotlight + announcer + hat reveal on the arena camera
+  rather than a fully choreographed cutscene.
 - Only one arena (the Disaster Dome). The plumbing supports more
   (`ARENAS` map + `hostSetArena`).
 - Victory sequence has slow-orbit camera, confetti, FIRST PICK banner and
@@ -53,8 +55,8 @@ real gaps, in rough priority order.
 
 ## Testing
 
-- E2E covers flows up to and including match start + spectating + (racy) match
-  completion; a scripted full-match e2e with assertions on the results screen
-  would need a "turbo" test mode (planned: settings preset with 30 s duration).
+- E2E now includes a full ⚡Turbo match run to completion with assertions on the
+  official 12-pick draft order, hat marker, exports, and the results API
+  (~60 s wall-clock).
 - No automated FPS regression harness; perf is measured manually via the
   in-game monitor.

@@ -3,16 +3,16 @@
 ## P0 — before your first real league night
 1. Deploy to a WebSocket-friendly host with a volume (deployment.md) and run a
    full 12-phone dress rehearsal on real devices.
-2. "Turbo" settings preset (30–60 s matches) for warm-up rounds and for a full
-   end-to-end automated results test.
+2. ~~"Turbo" settings preset + full end-to-end automated results test.~~ ✅ Done
+   (host settings → ⚡Turbo; e2e runs a whole match to the draft order).
 3. Field-tune default balance from a couple of human matches (see balance.md).
 
 ## P1 — polish that pays off most
 4. Commissioned/sculpted GLB character set behind the existing `CharacterRig`
    interface (asset-pipeline.md); Draco/Meshopt + KTX2 pipeline.
 5. Final-elimination instant replay (ring-buffer of snapshots → 5 s cinematic).
-6. Walkable 3D pregame lobby (backstage room with practice targets) reusing the
-   arena builder.
+6. ~~Walkable 3D pregame lobby.~~ ✅ Done (players roam the Dome pre-match and
+   practice controls). Remaining: a bespoke backstage room with practice targets.
 7. Per-weapon bespoke projectile behaviors for the 6 generic ones; slick trail
    visuals for grease/mustard on the client floor.
 8. Binary/delta snapshot encoding + interest management (halves bandwidth).

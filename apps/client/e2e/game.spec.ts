@@ -63,11 +63,12 @@ test("full flow: player joins on a phone, match starts, portrait gate + touch co
   await player.click("text=Enter the Dome");
   await player.click(`.slot-pick button:has-text("${NAMES[0]}")`);
 
-  // Onboarding: customization + ready
+  // Onboarding: customization + ready → drops into the walkable 3D lobby
   await expect(player.locator("text=You are Member 1")).toBeVisible({ timeout: 10_000 });
   await player.click(".choice-row .chip >> nth=1"); // change body
   await player.click("text=I'M READY");
-  await expect(player.locator("text=Ready — waiting")).toBeVisible();
+  await expect(player.locator(".hud-top")).toContainText("ready", { timeout: 15_000 });
+  await expect(player.locator("canvas.game-canvas")).toBeVisible(); // 3D pregame lobby
 
   // Host sees the claim, marks previous loser, fills AI, starts.
   await expect(hostPage.locator(".slot-row").first()).toContainText(/joined|ready/);
@@ -120,6 +121,37 @@ test("full flow: player joins on a phone, match starts, portrait gate + touch co
 
   await phone.close();
   await specCtx.close();
+  await hostPage.context().close();
+});
+
+test("turbo AI match runs to completion and shows the official 12-pick draft order", async ({ browser }) => {
+  test.setTimeout(300_000);
+  const { hostPage } = await createRoomAsHost(browser);
+  await hostPage.locator(".slot-row").nth(5).locator(".loser-btn").click(); // Member 6 wears the hat
+  await hostPage.click("text=Match settings");
+  await hostPage.click("text=⚡ Turbo");
+  await hostPage.click("text=Fill empty with AI");
+  await hostPage.click("text=START THE MATCH");
+  await expect(hostPage.locator("canvas.game-canvas")).toBeVisible({ timeout: 15_000 });
+
+  // Turbo settings guarantee termination (sudden death @60s + zone collapse).
+  await expect(hostPage.locator("text=OFFICIAL DRAFT ORDER")).toBeVisible({ timeout: 240_000 });
+  await expect(hostPage.locator(".result-row")).toHaveCount(12);
+  await expect(hostPage.locator(".result-row.first")).toContainText("WINNER — FIRST PICK");
+  await expect(hostPage.locator(".result-row").last()).toContainText("#12");
+  // The hat wearer is marked in the results
+  await expect(hostPage.locator(".results-list")).toContainText("🌈");
+  // Exports available
+  await expect(hostPage.locator("text=Copy as text")).toBeVisible();
+  await expect(hostPage.locator("text=Results card (PNG)")).toBeVisible();
+  // Shareable results link resolves via the API
+  const matchIdText = await hostPage.locator(".subtitle").textContent();
+  const matchId = matchIdText?.match(/match (\S+)/)?.[1];
+  expect(matchId).toBeTruthy();
+  const res = await fetch(`http://localhost:8787/api/results/${matchId}`);
+  expect(res.ok).toBe(true);
+  const results = (await res.json()) as { draftOrder: Array<{ pick: number }> };
+  expect(results.draftOrder).toHaveLength(12);
   await hostPage.context().close();
 });
 

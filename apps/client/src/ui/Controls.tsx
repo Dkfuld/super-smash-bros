@@ -1,13 +1,18 @@
 import { useEffect, useRef } from "react";
-import type { GameWorld } from "../game/world";
+import type { InputState } from "../game/world";
 import { settings, vibrate } from "./settings";
 import { audio } from "../audio/audio";
+
+/** Anything that accepts gameplay input (the networked match world or the local lobby). */
+export interface ControlTarget {
+  setInput(patch: Partial<InputState>): void;
+}
 
 /**
  * Mobile touch controls: left virtual joystick + right action cluster, plus
  * keyboard (WASD/arrows, J/K/L/Space) and gamepad support for desktop play.
  */
-export function Controls({ world, nearPickup }: { world: GameWorld; nearPickup: boolean }): JSX.Element {
+export function Controls({ world, nearPickup }: { world: ControlTarget; nearPickup: boolean }): JSX.Element {
   const zoneRef = useRef<HTMLDivElement>(null);
   const baseRef = useRef<HTMLDivElement>(null);
   const knobRef = useRef<HTMLDivElement>(null);
@@ -132,14 +137,14 @@ export function Controls({ world, nearPickup }: { world: GameWorld; nearPickup: 
     return () => cancelAnimationFrame(raf);
   }, [world]);
 
-  const press = (patch: Parameters<GameWorld["setInput"]>[0], haptic = 12): ((e: React.PointerEvent) => void) =>
+  const press = (patch: Partial<InputState>, haptic = 12): ((e: React.PointerEvent) => void) =>
     (e) => {
       e.preventDefault();
       audio.unlock();
       vibrate(haptic);
       world.setInput(patch);
     };
-  const release = (patch: Parameters<GameWorld["setInput"]>[0]): ((e: React.PointerEvent) => void) =>
+  const release = (patch: Partial<InputState>): ((e: React.PointerEvent) => void) =>
     (e) => {
       e.preventDefault();
       world.setInput(patch);
