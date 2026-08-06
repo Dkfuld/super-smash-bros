@@ -1,0 +1,32 @@
+{
+  "name": "draft-day-disaster-dome",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Draft Day: Disaster Dome — a 12-player 3D battle royale that decides your fantasy league draft order.",
+  "workspaces": [
+    "packages/shared",
+    "apps/server",
+    "apps/client"
+  ],
+  "scripts": {
+    "dev": "npm-run-all --parallel dev:server dev:client",
+    "dev:client": "npm run dev --workspace apps/client",
+    "dev:server": "npm run dev --workspace apps/server",
+    "build": "npm run build --workspace packages/shared && npm run build --workspace apps/server && npm run build --workspace apps/client",
+    "start": "npm run start --workspace apps/server",
+    "test": "npm run test --workspace packages/shared && npm run test --workspace apps/server",
+    "test:e2e": "npm run test:e2e --workspace apps/client",
+    "lint": "eslint .",
+    "typecheck": "tsc -b packages/shared apps/server apps/client",
+    "format": "prettier --write \"**/*.{ts,tsx,json,md,css,html}\""
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.18.0",
+    "@typescript-eslint/parser": "^8.18.0",
+    "eslint": "^9.17.0",
+    "npm-run-all": "^4.1.5",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
