@@ -167,6 +167,7 @@ export class Match {
   private nextPowerupAt = 0;
   private nextHazardAt = 0;
   private nextRandomYippeeAt = 0;
+  private nextRoastAt = ms(35000);
   private lastHitEventTick = 0;
   private quietAnnounced = false;
   private announcedCounts = new Set<number>();
@@ -437,6 +438,16 @@ export class Match {
       this.nextRandomYippeeAt =
         this.playTicks + ms(SIM.YIPPEE_RANDOM_INTERVAL_MS / Math.max(0.25, this.settings.yippeeFrequency)) * this.rng.range(0.6, 1.6);
     }
+    // Color commentary: periodically roast a random survivor. Funny league.
+    if (this.playTicks >= this.nextRoastAt) {
+      const alive = [...this.fighters.values()].filter((f) => !f.eliminated);
+      if (alive.length > 2) {
+        const roastee = alive[this.rng.int(0, alive.length - 1)]!;
+        this.emit({ e: "announce", tick: this.tickNo, line: announcerLine(this.rng, "colorRoast", roastee.name), mood: "roast" });
+      }
+      this.nextRoastAt = this.playTicks + ms(40000 * this.rng.range(0.8, 1.4));
+    }
+
     // Quiet-arena commentary
     if (this.playTicks - this.lastHitEventTick > ms(60000) && !this.quietAnnounced) {
       this.quietAnnounced = true;
@@ -622,6 +633,11 @@ export class Match {
       for (const pid of f.powerups.keys()) {
         const r = getPowerUp(pid).effects.regenPerSec;
         if (r) f.hp = Math.min(f.maxHp, f.hp + r * DT);
+      }
+      // Out-of-combat recovery keeps the field contested — nobody cruises at
+      // full health while someone else gets deleted in the opening minute.
+      if (this.playTicks - f.lastCombatTick > ms(8000) && f.hp < f.maxHp * 0.85) {
+        f.hp = Math.min(f.maxHp * 0.85, f.hp + 2.5 * DT);
       }
 
       // Stats: distance + hiding

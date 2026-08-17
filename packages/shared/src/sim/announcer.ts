@@ -60,6 +60,18 @@ const LINES: Record<string, string[]> = {
   introLoser: [
     "Returning from the deepest basement of last season's standings, the reigning champion of losing: [P]!",
   ],
+  colorRoast: [
+    "[P] is out here playing like they drafted a kicker in round one!",
+    "[P]'s strategy appears to be 'vibes'. Bold. Incorrect, but bold.",
+    "The scouting report on [P] said 'aggressively mediocre', and honestly? Accurate.",
+    "[P] is doing that thing where you run around and accomplish nothing. Classic [P].",
+    "[P] just made a decision so questionable the replay booth called in sick.",
+    "Somewhere, [P]'s group chat is already drafting the apology.",
+    "[P] is fighting like their draft prep: last minute and full of panic.",
+    "[P], with the cardio of someone who calls the walk to the fridge 'a workout'!",
+    "Breaking: [P] has been mathematically eliminated from being taken seriously.",
+    "[P] hasn't looked this lost since the trade deadline!",
+  ],
 };
 
 export function announcerLine(rng: Rng, key: string, p?: string, t?: string, w?: string): string {

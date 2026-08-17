@@ -15,6 +15,7 @@ export function HUD({ world, isPlayer }: { world: GameWorld; isPlayer: boolean }
   const [caption, setCaption] = useState<{ text: string; mood: string } | null>(null);
   const [yippee, setYippee] = useState<{ id: number; name: string } | null>(null);
   const [banner, setBanner] = useState<{ h1: string; h2?: string } | null>(null);
+  const [splats, setSplats] = useState<Array<{ id: number; big: boolean; blobs: Array<{ x: number; y: number; r: number }> }>>([]);
   const feedId = useRef(1);
   const captionTimer = useRef<number | null>(null);
   const bannerTimer = useRef<number | null>(null);
@@ -52,8 +53,26 @@ export function HUD({ world, isPlayer }: { world: GameWorld; isPlayer: boolean }
             showBanner("FINAL TWO", `${n.names[0]}  vs  ${n.names[1]}`, 3800);
             break;
           case "victory":
-            showBanner("FIRST PICK!", `${n.playerName} survives the Disaster Dome`, 8000);
+            showBanner("FIRST PICK!", `${n.playerName} survives the Smash Dome`, 8000);
             break;
+          case "focusOut":
+            showBanner("💥 YOU'RE OUT!", `Your draft pick: #${n.pick}. Time to spectate and heckle.`, 5000);
+            break;
+          case "focusWin":
+            showBanner("👑 YOU WIN!", "FIRST OVERALL PICK IS YOURS!", 9000);
+            break;
+          case "splat": {
+            if (settings.flashReduction) break;
+            const id = feedId.current++;
+            const blobs = Array.from({ length: n.big ? 9 : 4 }, () => ({
+              x: 8 + Math.random() * 84,
+              y: 8 + Math.random() * 84,
+              r: (n.big ? 14 : 7) + Math.random() * (n.big ? 18 : 9),
+            }));
+            setSplats((s) => [...s.slice(-2), { id, big: n.big, blobs }]);
+            setTimeout(() => setSplats((s) => s.filter((x) => x.id !== id)), n.big ? 1400 : 900);
+            break;
+          }
         }
       }),
     [world],
@@ -158,6 +177,18 @@ export function HUD({ world, isPlayer }: { world: GameWorld; isPlayer: boolean }
           {banner.h2 && <h2>{banner.h2}</h2>}
         </div>
       )}
+
+      {splats.map((s) => (
+        <div
+          key={s.id}
+          className={`splat ${s.big ? "big" : ""}`}
+          style={{
+            background: s.blobs
+              .map((b) => `radial-gradient(circle ${b.r}vmin at ${b.x}% ${b.y}%, rgba(214,28,48,0.85) 0%, rgba(214,28,48,0.8) 55%, transparent 62%)`)
+              .join(","),
+          }}
+        />
+      ))}
 
       {hud?.outsideZone && !hud.eliminated && !settings.flashReduction && <div className="hud-vignette" />}
       {hud?.blind && <div className="hud-blind" />}

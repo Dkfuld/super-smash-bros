@@ -72,7 +72,10 @@ export type UiNotice =
   | { kind: "yippee"; playerName: string; variant: string }
   | { kind: "phase"; phase: MatchPhase }
   | { kind: "finalTwo"; names: [string, string] }
-  | { kind: "victory"; playerName: string };
+  | { kind: "victory"; playerName: string }
+  | { kind: "focusOut"; pick: number }
+  | { kind: "focusWin" }
+  | { kind: "splat"; big: boolean };
 
 export type SpectatorCam = "director" | "follow" | "overhead" | "arena" | "free";
 
@@ -118,6 +121,8 @@ export class GameWorld {
   private blindUntil = 0;
   private specCam: SpectatorCam = "director";
   private specFollowId: string | null = null;
+  /** The viewer's own league identity when spectating a shared match. */
+  private focusId: string | null = null;
   private directorTarget: string | null = null;
   private directorSwitchAt = 0;
   private directorCut = false;
@@ -192,6 +197,15 @@ export class GameWorld {
   setSpectatorCam(cam: SpectatorCam, followId?: string): void {
     this.specCam = cam;
     if (followId) this.specFollowId = followId;
+  }
+
+  /** Mark which fighter is "you" for this viewer: follow cam + personal banners. */
+  setFocus(id: string | null): void {
+    this.focusId = id;
+    if (id) {
+      this.specCam = "follow";
+      this.specFollowId = id;
+    }
   }
 
   dispose(): void {
@@ -315,6 +329,12 @@ export class GameWorld {
           }
           audio.play("elimination");
           audio.play("partyBoom");
+          this.camShake = Math.max(this.camShake, shakeAmount(0.35));
+          const isFocusDeath = ev.record.playerId === (this.myId ?? this.focusId);
+          this.notice({ kind: "splat", big: isFocusDeath });
+          if (ev.record.playerId === this.focusId) {
+            this.notice({ kind: "focusOut", pick: 12 - this.elimOrder.indexOf(ev.record.playerId) });
+          }
           this.notice({ kind: "feed", text: `❌ ${ev.record.playerName} eliminated${ev.record.byPlayerId ? ` by ${this.nameOf(ev.record.byPlayerId)}` : ""}` });
           if (ev.record.playerId === this.myId) {
             this.myPlacementPick = 12 - [...this.fighters.values()].filter((f) => f.next?.eliminated).length + 1;
@@ -379,6 +399,7 @@ export class GameWorld {
           audio.setMusic("victory");
           audio.play("victory");
           this.notice({ kind: "victory", playerName: ev.playerName });
+          if (ev.playerId === this.focusId) this.notice({ kind: "focusWin" });
           const e = this.fighters.get(ev.playerId);
           if (e) this.effects.confetti(e.rig.root.position.add(new Vector3(0, 3, 0)), true);
           break;
@@ -621,10 +642,32 @@ export class GameWorld {
           camPos = new Vector3(Math.sin(this.t * 0.1) * 34, 20, Math.cos(this.t * 0.1) * 34);
           break;
         case "follow": {
-          const f = this.specFollowId ? this.fighters.get(this.specFollowId) : null;
-          if (f) {
-            target = f.rig.root.position.add(new Vector3(0, 1.2, 0));
-            camPos = f.rig.root.position.add(new Vector3(0, 9, -9));
+          const fid = this.specFollowId ?? this.focusId;
+          const f = fid ? this.fighters.get(fid) : null;
+          if (f && f.next && !f.next.eliminated) {
+            // Personal chase cam: close, low, framed with the nearest threat,
+            // shooting from the arena center so the crowd is the backdrop.
+            const fpos = f.rig.root.position;
+            let mate: Vector3 | null = null;
+            let md = 14;
+            for (const o of this.fighters.values()) {
+              if (o === f || !o.next || o.next.eliminated) continue;
+              const d = Vector3.Distance(o.rig.root.position, fpos);
+              if (d < md) {
+                md = d;
+                mate = o.rig.root.position;
+              }
+            }
+            const mid = mate ? Vector3.Lerp(fpos, mate, 0.25) : fpos.clone();
+            target = mid.add(new Vector3(0, 1.3, 0));
+            const dist = Math.min(10, 5 + (mate ? md * 0.5 : 2));
+            const flat = new Vector3(fpos.x, 0, fpos.z);
+            const outward = flat.length() > 2 ? flat.normalize() : new Vector3(Math.sin(this.t * 0.1), 0, Math.cos(this.t * 0.1));
+            camPos = mid.subtract(outward.scale(dist * 0.9)).add(new Vector3(0, 2.6 + dist * 0.35, 0));
+          } else if (f) {
+            // Your fighter is out — drift up while the director takes over framing.
+            target = new Vector3(0, 1, 0);
+            camPos = new Vector3(0, 30, -18);
           }
           break;
         }
@@ -723,7 +766,7 @@ export class GameWorld {
           pick: elimIdx >= 0 ? 12 - elimIdx : null,
           elims: this.elimsBy.get(p.id) ?? 0,
           hat: f?.hat ?? false,
-          isMe: p.id === this.myId,
+          isMe: p.id === (this.myId ?? this.focusId),
         };
       })
       .sort((a, b) => {

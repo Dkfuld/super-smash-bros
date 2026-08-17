@@ -202,7 +202,9 @@ function SoloMatch({ cfg, autoStart, onExit }: { cfg: SoloConfig; autoStart: boo
   const [results, setResults] = useState<MatchResults | null>(null);
   const [showResults, setShowResults] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [started, setStarted] = useState(autoStart);
+  const [gateDone, setGateDone] = useState(autoStart);
+  const [started, setStarted] = useState(false);
+  const [focus, setFocus] = useState<string | null>(null);
   const matchRef = useRef<Match | null>(null);
 
   // Embedded viewers can't carry URL params, so share the raw match code there;
@@ -271,7 +273,7 @@ function SoloMatch({ cfg, autoStart, onExit }: { cfg: SoloConfig; autoStart: boo
   }, [started]);
 
   // Share gate: lock the match in and blast the link to the league first.
-  if (!started) {
+  if (!gateDone) {
     return (
       <div className="screen">
         <div style={{ fontSize: "2.6rem" }}>📲</div>
@@ -287,13 +289,43 @@ function SoloMatch({ cfg, autoStart, onExit }: { cfg: SoloConfig; autoStart: boo
           <button className="btn secondary" onClick={() => { void copyText(shareText).then((ok) => ok && flagCopied(setCopied)); }}>
             📋 Just copy the {isEmbedded() ? "match code" : "link"}
           </button>
-          <button className="btn" style={{ fontSize: "1.15rem" }} onClick={() => { audio.unlock(); setStarted(true); }}>
+          <button className="btn" style={{ fontSize: "1.15rem" }} onClick={() => { audio.unlock(); setGateDone(true); }}>
             ▶ START THE SHOW
           </button>
         </div>
         <p style={{ fontSize: "0.75rem", color: "var(--text-dim)", maxWidth: "26rem", textAlign: "center" }}>
           Anyone opening the link later sees the same match from the beginning — start whenever you're ready.
         </p>
+      </div>
+    );
+  }
+
+  // Who are you? Every viewer locks the camera onto their own fighter.
+  if (!started) {
+    return (
+      <div className="screen">
+        <div style={{ fontSize: "2.4rem" }}>👀</div>
+        <h1 className="title" style={{ fontSize: "1.6rem" }}>WHICH ONE ARE YOU?</h1>
+        <p className="subtitle">The camera follows your fighter. Your fate, live and personal.</p>
+        <div className="slot-pick">
+          {cfg.names.map((n, i) => (
+            <button
+              key={i}
+              onClick={() => {
+                audio.unlock();
+                audio.play("ready");
+                setFocus(`p${i}`);
+                setStarted(true);
+              }}
+            >
+              {n}
+              {i === cfg.loser ? " 🌈" : ""}
+            </button>
+          ))}
+        </div>
+        <button className="btn secondary" onClick={() => { audio.unlock(); setStarted(true); }}>
+          🎬 Just show me everything (director mode)
+        </button>
       </div>
     );
   }
@@ -316,7 +348,7 @@ function SoloMatch({ cfg, autoStart, onExit }: { cfg: SoloConfig; autoStart: boo
 
   return (
     <>
-      <GameView participants={participants} myId={null} spectatorUi />
+      <GameView participants={participants} myId={null} spectatorUi initialFocusId={focus} />
       <SettingsPanel />
       <div className="row" style={{ position: "fixed", bottom: "0.6rem", left: "0.6rem", zIndex: 300 }}>
         <button className="btn small secondary" onClick={() => doShare(setCopied)}>

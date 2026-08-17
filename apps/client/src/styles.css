@@ -452,6 +452,53 @@ input, select, textarea { font: inherit; }
 .award-card { background: rgba(255, 255, 255, 0.06); border-radius: 12px; padding: 0.6rem; font-size: 0.82rem; }
 .award-card .aw-title { color: var(--gold); font-weight: 800; }
 
+/* ---------- cartoon elimination splat ---------- */
+.splat {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 25;
+  animation: splatFade 0.9s ease-out forwards;
+}
+.splat.big { animation-duration: 1.4s; }
+@keyframes splatFade {
+  0% { opacity: 0; transform: scale(1.15); }
+  12% { opacity: 1; transform: scale(1); }
+  70% { opacity: 0.85; }
+  100% { opacity: 0; }
+}
+
+/* ---------- spectator follow roster ---------- */
+.spec-roster {
+  position: absolute;
+  bottom: max(0.5rem, env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  display: flex;
+  gap: 0.3rem;
+  max-width: 94vw;
+  overflow-x: auto;
+  padding: 0.3rem;
+  background: rgba(12, 7, 30, 0.75);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  scrollbar-width: none;
+}
+.spec-roster::-webkit-scrollbar { display: none; }
+.roster-chip {
+  flex-shrink: 0;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--text-dim);
+  white-space: nowrap;
+  min-height: 36px;
+}
+.roster-chip.active { background: var(--pink); color: #fff; }
+
 /* ---------- live leaderboard ---------- */
 .board-toggle {
   position: absolute;
