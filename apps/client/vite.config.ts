@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 export default defineConfig({
+  base: process.env.DDD_BASE ?? "/", // "/repo-name/" for GitHub Pages project sites
   plugins: [react()],
   server: {
     host: true,
