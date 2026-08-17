@@ -6,7 +6,7 @@
  *   npm run simulate --workspace apps/server -- 1234   # fixed seed
  */
 import { DEFAULT_SETTINGS, defaultCharacter, type ParticipantSlot } from "@ddd/shared";
-import { Match } from "../match.js";
+import { Match } from "@ddd/shared";
 
 const seed = Number(process.argv[2] ?? Math.floor(Math.random() * 1e9));
 const FUNNY_NAMES = [

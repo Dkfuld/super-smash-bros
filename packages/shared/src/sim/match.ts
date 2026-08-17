@@ -29,7 +29,7 @@ import {
   type PlayerStats,
   type Snapshot,
   type WeaponDef,
-} from "@ddd/shared";
+} from "../index.js";
 import { announcerLine, YIPPEE_VARIANTS } from "./announcer.js";
 import { AiController } from "./ai.js";
 

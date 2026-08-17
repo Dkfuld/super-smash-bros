@@ -16,8 +16,11 @@ export function Landing(): JSX.Element {
         out picks last. Last one standing picks first. No takebacks.
       </p>
       <div className="panel" style={{ display: "flex", flexDirection: "column", gap: "0.7rem" }}>
-        <button className="btn gold" onClick={() => { audio.unlock(); setMode({ kind: "host" }); }}>
-          🎪 Host a Draft Night
+        <button className="btn gold" onClick={() => { audio.unlock(); setMode({ kind: "solo", blob: null }); }}>
+          🎲 Draft Order Simulator (no setup — works anywhere)
+        </button>
+        <button className="btn" onClick={() => { audio.unlock(); setMode({ kind: "host" }); }}>
+          🎪 Host a live 12-player Draft Night
         </button>
         <div className="row" style={{ flexWrap: "nowrap" }}>
           <input

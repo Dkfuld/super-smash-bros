@@ -1,4 +1,4 @@
-import type { Rng } from "@ddd/shared";
+import type { Rng } from "../rng.js";
 
 /**
  * Original comedic announcer. Lines are generated server-side so every client,

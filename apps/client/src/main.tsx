@@ -1,3 +1,4 @@
+import "./storageShim";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
@@ -20,9 +21,9 @@ document.addEventListener(
   { passive: false },
 );
 
-// PWA service worker (production only)
-if ("serviceWorker" in navigator && import.meta.env.PROD) {
-  window.addEventListener("load", () => void navigator.serviceWorker.register("/sw.js"));
+// PWA service worker (production only; silently unavailable on static embeds)
+if ("serviceWorker" in navigator && import.meta.env.PROD && !import.meta.env.VITE_SOLO_ONLY) {
+  window.addEventListener("load", () => void navigator.serviceWorker.register("/sw.js").catch(() => {}));
 }
 
 createRoot(document.getElementById("root")!).render(

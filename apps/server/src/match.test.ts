@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_SETTINGS, MAX_PLAYERS, defaultCharacter, type MatchResults, type ParticipantSlot } from "@ddd/shared";
-import { Match } from "./match.js";
+import { Match } from "@ddd/shared";
 
 function participants(aiAll = true): ParticipantSlot[] {
   return Array.from({ length: 12 }, (_, i) => ({

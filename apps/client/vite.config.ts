@@ -13,13 +13,15 @@ export default defineConfig({
   },
   build: {
     target: "es2022",
-    chunkSizeWarningLimit: 4200, // Babylon.js core is intentionally one chunk
+    chunkSizeWarningLimit: 6000, // Babylon.js core is intentionally one chunk
     rollupOptions: {
-      output: {
-        manualChunks: {
-          babylon: ["@babylonjs/core"],
-        },
-      },
+      output: process.env.DDD_SINGLE_FILE
+        ? { inlineDynamicImports: true } // one bundle for static single-file embeds
+        : {
+            manualChunks: {
+              babylon: ["@babylonjs/core"],
+            },
+          },
     },
   },
 });

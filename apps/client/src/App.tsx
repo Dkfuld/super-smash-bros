@@ -7,19 +7,25 @@ import { HostDashboard } from "./ui/HostDashboard";
 import { PlayerFlow } from "./ui/PlayerFlow";
 import { Spectator } from "./ui/Spectator";
 import { ResultsStandalone } from "./ui/Results";
+import { Solo } from "./ui/Solo";
 
 export type AppMode =
   | { kind: "landing" }
   | { kind: "host"; demo?: boolean }
   | { kind: "play"; roomCode: string }
   | { kind: "spectate"; roomCode: string }
-  | { kind: "results"; matchId: string };
+  | { kind: "results"; matchId: string }
+  | { kind: "solo"; blob: string | null };
 
 let mode: AppMode = initMode();
 const modeListeners = new Set<() => void>();
 
 function initMode(): AppMode {
   const p = new URLSearchParams(location.search);
+  const sim = p.get("sim");
+  if (sim !== null) return { kind: "solo", blob: sim || null };
+  // Static/serverless build (GitHub Pages, artifact): simulator only.
+  if (import.meta.env.VITE_SOLO_ONLY) return { kind: "solo", blob: null };
   const room = p.get("room");
   if (room) return { kind: "play", roomCode: room.toUpperCase() };
   const spectate = p.get("spectate");
@@ -61,6 +67,8 @@ export function App(): JSX.Element {
   });
 
   switch (m.kind) {
+    case "solo":
+      return <Solo blob={m.blob} />;
     case "host":
       return <HostDashboard demo={m.demo} />;
     case "play":

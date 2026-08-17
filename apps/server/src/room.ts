@@ -13,7 +13,7 @@ import {
 } from "@ddd/shared";
 import type { WebSocket } from "ws";
 import { RateLimiter, roomCode, token } from "./auth.js";
-import { Match } from "./match.js";
+import { Match } from "@ddd/shared";
 import type { Store } from "./store.js";
 
 export interface Session {

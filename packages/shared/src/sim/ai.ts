@@ -1,4 +1,4 @@
-import { Rng, SIM, collidesBlocking, getWeapon, type InputMessage } from "@ddd/shared";
+import { Rng, SIM, collidesBlocking, getWeapon, type InputMessage } from "../index.js";
 import type { Fighter, Match } from "./match.js";
 
 type Mode = "wander" | "seekWeapon" | "hunt" | "flee" | "zoneReturn" | "avoidHazard";

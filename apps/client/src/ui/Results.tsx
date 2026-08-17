@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { COLORS, draftOrderAsCsv, draftOrderAsText, type MatchResults } from "@ddd/shared";
 import { audio } from "../audio/audio";
 import { drawIcon } from "../game/character";
+import { copyText, isEmbedded } from "./clipboard";
 import { setMode } from "../App";
 
 /** Final draft order, stats, awards, and all export paths (text/CSV/JSON/PNG/link). */
@@ -72,22 +73,31 @@ export function ResultsScreen({
       </div>
 
       <div className="row" style={{ justifyContent: "center" }}>
-        <button className="btn small secondary" onClick={() => { void navigator.clipboard?.writeText(draftOrderAsText(results.leagueName, results.draftOrder)); flash("text"); }}>
+        <button className="btn small secondary" onClick={() => { void copyText(draftOrderAsText(results.leagueName, results.draftOrder)); flash("text"); }}>
           {copied === "text" ? "✓ Copied" : "📋 Copy as text"}
         </button>
-        <button className="btn small secondary" onClick={() => download(`draft-order-${results.matchId}.csv`, draftOrderAsCsv(results.draftOrder), "text/csv")}>
-          ⬇ CSV
-        </button>
-        <button className="btn small secondary" onClick={() => download(`match-${results.matchId}.json`, JSON.stringify(results, null, 2), "application/json")}>
-          ⬇ JSON
-        </button>
-        <button className="btn small secondary" onClick={() => { void renderResultsCard(results).then((blob) => download(`draft-night-${results.matchId}.png`, blob)); flash("png"); }}>
-          🖼 Results card (PNG)
-        </button>
-        <button className="btn small secondary" onClick={() => { void navigator.clipboard?.writeText(shareUrl); flash("link"); }}>
-          {copied === "link" ? "✓ Copied" : "🔗 Share link"}
-        </button>
+        {!isEmbedded() && (
+          <>
+            <button className="btn small secondary" onClick={() => download(`draft-order-${results.matchId}.csv`, draftOrderAsCsv(results.draftOrder), "text/csv")}>
+              ⬇ CSV
+            </button>
+            <button className="btn small secondary" onClick={() => download(`match-${results.matchId}.json`, JSON.stringify(results, null, 2), "application/json")}>
+              ⬇ JSON
+            </button>
+            <button className="btn small secondary" onClick={() => { void renderResultsCard(results).then((blob) => download(`draft-night-${results.matchId}.png`, blob)); flash("png"); }}>
+              🖼 Results card (PNG)
+            </button>
+            <button className="btn small secondary" onClick={() => { void copyText(shareUrl); flash("link"); }}>
+              {copied === "link" ? "✓ Copied" : "🔗 Share link"}
+            </button>
+          </>
+        )}
       </div>
+      {isEmbedded() && (
+        <p style={{ fontSize: "0.72rem", color: "var(--text-dim)" }}>
+          Screenshot this, or use “Copy as text” to paste the order into the group chat.
+        </p>
+      )}
 
       <h2 style={{ fontWeight: 900, marginTop: "0.6rem" }}>🏅 Awards</h2>
       <div className="awards-grid">
@@ -143,9 +153,11 @@ export function ResultsScreen({
             🔄 Run it back (unofficial!)
           </button>
         )}
-        <button className="btn secondary" onClick={() => { location.href = "/"; }}>
-          🏠 Home
-        </button>
+        {!isEmbedded() && (
+          <button className="btn secondary" onClick={() => { location.href = "/"; }}>
+            🏠 Home
+          </button>
+        )}
       </div>
     </div>
   );
