@@ -10,6 +10,7 @@ import {
 } from "@ddd/shared";
 import { audio } from "../audio/audio";
 import { connection } from "../net/connection";
+import { FIGHTER_KITS, KIT_INFO } from "../game/character";
 import { copyText, isEmbedded } from "./clipboard";
 import { GameView } from "./GameView";
 import { ResultsScreen } from "./Results";
@@ -28,17 +29,19 @@ export interface SoloConfig {
   loser: number; // slot index of last season's last place
   seed: number;
   pace: "quick" | "full";
+  /** Fighter avatar (index into FIGHTER_KITS) per slot — part of the shared link. */
+  kits: number[];
 }
 
 export function encodeSoloConfig(cfg: SoloConfig): string {
-  const json = JSON.stringify([cfg.league, cfg.names, cfg.loser, cfg.seed, cfg.pace]);
+  const json = JSON.stringify([cfg.league, cfg.names, cfg.loser, cfg.seed, cfg.pace, cfg.kits]);
   return btoa(unescape(encodeURIComponent(json))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
 export function decodeSoloConfig(blob: string): SoloConfig | null {
   try {
     const json = decodeURIComponent(escape(atob(blob.replace(/-/g, "+").replace(/_/g, "/"))));
-    const [league, names, loser, seed, pace] = JSON.parse(json) as [string, string[], number, number, string];
+    const [league, names, loser, seed, pace, kits] = JSON.parse(json) as [string, string[], number, number, string, number[]?];
     if (!Array.isArray(names) || names.length !== 12) return null;
     return {
       league: String(league).slice(0, 24),
@@ -46,6 +49,9 @@ export function decodeSoloConfig(blob: string): SoloConfig | null {
       loser: Math.min(11, Math.max(0, Number(loser) || 0)),
       seed: Number(seed) >>> 0,
       pace: pace === "full" ? "full" : "quick",
+      kits: Array.isArray(kits) && kits.length === 12
+        ? kits.map((k) => Math.min(FIGHTER_KITS.length - 1, Math.max(0, Number(k) || 0)))
+        : Array.from({ length: 12 }, (_, i) => i % FIGHTER_KITS.length),
     };
   } catch {
     return null;
@@ -87,8 +93,14 @@ function SoloSetup({ onStart, invalidLink }: { onStart: (c: SoloConfig) => void;
   const [pace, setPace] = useState<"quick" | "full">("quick");
   const [matchCode, setMatchCode] = useState("");
   const [codeError, setCodeError] = useState(false);
+  const [kits, setKits] = useState<number[]>(() => Array.from({ length: 12 }, (_, i) => i % FIGHTER_KITS.length));
   const names = namesText.split("\n").map((n) => n.trim()).filter(Boolean);
   const ready = names.length === 12 && league.trim().length > 0 && loser >= 0;
+
+  const cycleKit = (i: number, dir: number): void => {
+    audio.play("click");
+    setKits((k) => k.map((v, idx) => (idx === i ? (v + dir + FIGHTER_KITS.length) % FIGHTER_KITS.length : v)));
+  };
 
   return (
     <div className="screen" style={{ justifyContent: "flex-start", paddingTop: "max(1.2rem, env(safe-area-inset-top))" }}>
@@ -112,6 +124,34 @@ function SoloSetup({ onStart, invalidLink }: { onStart: (c: SoloConfig) => void;
         <button className="btn small secondary" onClick={() => setNamesText(DEMO_NAMES.join("\n"))} style={{ marginBottom: "0.8rem" }}>
           Fill sample names
         </button>
+        {names.length === 12 && (
+          <div className="field">
+            <label>Pick each fighter's avatar (tap to cycle)</label>
+            <div className="kit-grid">
+              {names.map((n, i) => {
+                const kit = FIGHTER_KITS[kits[i] ?? 0] ?? "knight";
+                return (
+                  <button key={i} className="kit-row" onClick={() => cycleKit(i, 1)}>
+                    <span className="kit-name">{n}</span>
+                    <span className="kit-pick">
+                      {KIT_INFO[kit].emoji} {KIT_INFO[kit].label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              className="btn small secondary"
+              style={{ marginTop: "0.4rem" }}
+              onClick={() => {
+                audio.play("click");
+                setKits(Array.from({ length: 12 }, () => Math.floor(Math.random() * FIGHTER_KITS.length)));
+              }}
+            >
+              🎲 Randomize avatars
+            </button>
+          </div>
+        )}
         {names.length === 12 && (
           <div className="field">
             <label>Who finished LAST place last season? (wears the 🌈 Rainbow Fan-Spin Hat)</label>
@@ -141,7 +181,7 @@ function SoloSetup({ onStart, invalidLink }: { onStart: (c: SoloConfig) => void;
             localStorage.setItem("ddd.league", league);
             localStorage.setItem("ddd.names", namesText);
             const seed = (crypto.getRandomValues(new Uint32Array(1))[0] ?? Date.now()) >>> 0;
-            onStart({ league: league.trim(), names: names.slice(0, 12), loser, seed, pace });
+            onStart({ league: league.trim(), names: names.slice(0, 12), loser, seed, pace, kits });
           }}
         >
           🥊 LET FATE DECIDE →
@@ -308,20 +348,24 @@ function SoloMatch({ cfg, autoStart, onExit }: { cfg: SoloConfig; autoStart: boo
         <h1 className="title" style={{ fontSize: "1.6rem" }}>WHICH ONE ARE YOU?</h1>
         <p className="subtitle">The camera follows your fighter. Your fate, live and personal.</p>
         <div className="slot-pick">
-          {cfg.names.map((n, i) => (
-            <button
-              key={i}
-              onClick={() => {
-                audio.unlock();
-                audio.play("ready");
-                setFocus(`p${i}`);
-                setStarted(true);
-              }}
-            >
-              {n}
-              {i === cfg.loser ? " 🌈" : ""}
-            </button>
-          ))}
+          {cfg.names.map((n, i) => {
+            const kit = FIGHTER_KITS[cfg.kits[i] ?? 0] ?? "knight";
+            return (
+              <button
+                key={i}
+                onClick={() => {
+                  audio.unlock();
+                  audio.play("ready");
+                  setFocus(`p${i}`);
+                  setStarted(true);
+                }}
+              >
+                {KIT_INFO[kit].emoji} {n}
+                {i === cfg.loser ? " 🌈" : ""}
+                <div style={{ fontSize: "0.68rem", color: "var(--text-dim)" }}>{KIT_INFO[kit].label}</div>
+              </button>
+            );
+          })}
         </div>
         <button className="btn secondary" onClick={() => { audio.unlock(); setStarted(true); }}>
           🎬 Just show me everything (director mode)
@@ -348,7 +392,13 @@ function SoloMatch({ cfg, autoStart, onExit }: { cfg: SoloConfig; autoStart: boo
 
   return (
     <>
-      <GameView participants={participants} myId={null} spectatorUi initialFocusId={focus} />
+      <GameView
+        participants={participants}
+        myId={null}
+        spectatorUi
+        initialFocusId={focus}
+        kits={cfg.kits.map((k) => FIGHTER_KITS[k])}
+      />
       <SettingsPanel />
       <div className="row" style={{ position: "fixed", top: "max(0.5rem, env(safe-area-inset-top))", left: "max(0.5rem, env(safe-area-inset-left))", zIndex: 300 }}>
         <button className="btn small secondary" onClick={() => doShare(setCopied)}>

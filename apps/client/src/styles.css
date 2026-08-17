@@ -452,6 +452,22 @@ input, select, textarea { font: inherit; }
 .award-card { background: rgba(255, 255, 255, 0.06); border-radius: 12px; padding: 0.6rem; font-size: 0.82rem; }
 .award-card .aw-title { color: var(--gold); font-weight: 800; }
 
+/* ---------- avatar (kit) picker ---------- */
+.kit-grid { display: flex; flex-direction: column; gap: 0.25rem; max-height: 15rem; overflow-y: auto; }
+.kit-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 0.4rem 0.6rem;
+  color: var(--text);
+  min-height: 40px;
+}
+.kit-row .kit-name { font-weight: 700; font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kit-row .kit-pick { color: var(--cyan); font-size: 0.8rem; font-weight: 700; white-space: nowrap; }
+
 /* ---------- cartoon elimination splat ---------- */
 .splat {
   position: absolute;

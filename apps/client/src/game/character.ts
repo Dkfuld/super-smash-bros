@@ -221,11 +221,31 @@ export function createRainbowHat(scene: Scene, parent: TransformNode, particleSc
 export const FIGHTER_KITS = [
   "knight", "ninja", "wizard", "robot", "viking", "boxer",
   "archer", "pirate", "luchador", "samurai", "scientist", "hero",
+  "royal", "ape", "dragon", "hunter",
 ] as const;
 export type FighterKit = (typeof FIGHTER_KITS)[number];
 
+export const KIT_INFO: Record<FighterKit, { label: string; emoji: string }> = {
+  knight: { label: "Sword Knight", emoji: "🗡" },
+  ninja: { label: "Shadow Ninja", emoji: "🥷" },
+  wizard: { label: "Battle Wizard", emoji: "🧙" },
+  robot: { label: "Combat Bot", emoji: "🤖" },
+  viking: { label: "Viking", emoji: "🪓" },
+  boxer: { label: "Champ Boxer", emoji: "🥊" },
+  archer: { label: "Hooded Archer", emoji: "🏹" },
+  pirate: { label: "Pirate Captain", emoji: "🏴‍☠️" },
+  luchador: { label: "Luchador", emoji: "🎭" },
+  samurai: { label: "Samurai", emoji: "⚔️" },
+  scientist: { label: "Mad Scientist", emoji: "🧪" },
+  hero: { label: "Caped Hero", emoji: "🦸" },
+  royal: { label: "Royal Highness", emoji: "👑" },
+  ape: { label: "Jungle Bruiser", emoji: "🦍" },
+  dragon: { label: "Dragon Tyrant", emoji: "🐉" },
+  hunter: { label: "Space Hunter", emoji: "🛰" },
+};
+
 /** Kits that cover the head (procedural hair is skipped for these). */
-const KIT_HEADGEAR = new Set<FighterKit>(["knight", "ninja", "wizard", "viking", "archer", "pirate", "luchador", "samurai", "scientist"]);
+const KIT_HEADGEAR = new Set<FighterKit>(["knight", "ninja", "wizard", "viking", "archer", "pirate", "luchador", "samurai", "scientist", "royal", "ape", "dragon", "hunter"]);
 
 export function createCharacter(
   scene: Scene,
@@ -600,6 +620,117 @@ export function createCharacter(
         goggles.parent = headScaleNode;
         goggles.position.y = hy - 0.02;
         goggles.rotation.x = 0.35;
+        break;
+      }
+      case "royal": {
+        // Original royalty class: spiked golden crown, flowing gown, scepter.
+        const crownBase = MeshBuilder.CreateCylinder("crown", { diameter: 0.4 * hs, height: 0.12 * hs }, scene);
+        crownBase.material = mat(scene, "crownM", "#ffd23f", 0.5);
+        crownBase.parent = headScaleNode;
+        crownBase.position.y = hy + 0.06 * hs;
+        for (let i = 0; i < 5; i++) {
+          const spike = MeshBuilder.CreateCylinder(`crSpike${i}`, { diameterTop: 0, diameterBottom: 0.07 * hs, height: 0.14 * hs }, scene);
+          spike.material = crownBase.material;
+          spike.parent = headScaleNode;
+          const a = (i / 5) * Math.PI * 2;
+          spike.position.set(Math.sin(a) * 0.17 * hs, hy + 0.17 * hs, Math.cos(a) * 0.17 * hs);
+        }
+        const gown = MeshBuilder.CreateCylinder("gown", { diameterTop: 0.5 * body.width, diameterBottom: 1.0 * body.width, height: 0.55 }, scene);
+        gown.material = mat(scene, "gownM", color.primary, 0.08);
+        gown.parent = visual;
+        gown.position.y = 0.32;
+        const scepter = MeshBuilder.CreateCylinder("scepter", { diameter: 0.05, height: 0.55 }, scene);
+        scepter.material = mat(scene, "scepM", "#ffd23f", 0.3);
+        scepter.parent = armL.pivot;
+        scepter.position.y = -armLen - 0.05;
+        const gem = MeshBuilder.CreateSphere("gem", { diameter: 0.13 }, scene);
+        gem.material = mat(scene, "gemM", "#ff5f9e", 0.8);
+        gem.parent = armL.pivot;
+        gem.position.y = -armLen - 0.35;
+        break;
+      }
+      case "ape": {
+        // Original big-friendly-bruiser class: fur, huge arms, mighty muzzle.
+        const fur = mat(scene, "furM", "#6b4a2b");
+        const furCap = MeshBuilder.CreateSphere("furCap", { diameter: 0.66 * hs, slice: 0.6 }, scene);
+        furCap.material = fur;
+        furCap.parent = headScaleNode;
+        furCap.position.y = hy - 0.08;
+        const muzzle = MeshBuilder.CreateSphere("muzzle", { diameterX: 0.34 * hs, diameterY: 0.22 * hs, diameterZ: 0.18 * hs }, scene);
+        muzzle.material = mat(scene, "muzzleM", "#d9b98c");
+        muzzle.parent = headScaleNode;
+        muzzle.position.set(0, 0.12 * hs, 0.28 * hs);
+        const chestFur = MeshBuilder.CreateSphere("chestFur", { diameterX: 0.9 * body.width, diameterY: 0.8, diameterZ: 0.6 * body.width * body.bellyScale }, scene);
+        chestFur.material = fur;
+        chestFur.parent = visual;
+        chestFur.position.y = 0.72;
+        chestFur.position.z = -0.04;
+        for (const arm of [armL, armR]) {
+          const bigArm = MeshBuilder.CreateSphere("bigArm", { diameter: 0.3 }, scene);
+          bigArm.material = fur;
+          bigArm.parent = arm.pivot;
+          bigArm.position.y = -armLen * 0.5;
+          const fist = MeshBuilder.CreateSphere("fist", { diameter: 0.26 }, scene);
+          fist.material = fur;
+          fist.parent = arm.pivot;
+          fist.position.y = -armLen - 0.04;
+        }
+        break;
+      }
+      case "dragon": {
+        // Original dragon-monster class: horns, snout, tail, stubby wings.
+        const scale = mat(scene, "scaleM", "#3f8f4e");
+        for (const side of [-1, 1]) {
+          const horn = MeshBuilder.CreateCylinder("dHorn", { diameterTop: 0, diameterBottom: 0.09 * hs, height: 0.26 * hs }, scene);
+          horn.material = mat(scene, "dHornM", "#f2ead8");
+          horn.parent = headScaleNode;
+          horn.position.set(side * 0.2 * hs, hy + 0.1 * hs, -0.05);
+          horn.rotation.z = -side * 0.4;
+        }
+        const crest = MeshBuilder.CreateSphere("dCrest", { diameter: 0.62 * hs, slice: 0.55 }, scene);
+        crest.material = scale;
+        crest.parent = headScaleNode;
+        crest.position.y = hy - 0.05;
+        const snout = MeshBuilder.CreateBox("snout", { width: 0.26 * hs, height: 0.14 * hs, depth: 0.24 * hs }, scene);
+        snout.material = scale;
+        snout.parent = headScaleNode;
+        snout.position.set(0, 0.1 * hs, 0.32 * hs);
+        const tail = MeshBuilder.CreateCylinder("tail", { diameterTop: 0.03, diameterBottom: 0.16, height: 0.7 }, scene);
+        tail.material = scale;
+        tail.parent = visual;
+        tail.position.set(0, 0.45, back - 0.15);
+        tail.rotation.x = 1.1;
+        for (const side of [-1, 1]) {
+          const wing = MeshBuilder.CreatePlane("wing", { width: 0.4, height: 0.32 }, scene);
+          const wm = mat(scene, "wingM", color.secondary, 0.12);
+          wm.backFaceCulling = false;
+          wing.material = wm;
+          wing.parent = visual;
+          wing.position.set(side * 0.3 * body.width, 1.05, back - 0.04);
+          wing.rotation.z = side * 0.7;
+          wing.rotation.y = side * 0.5;
+        }
+        break;
+      }
+      case "hunter": {
+        // Original armored bounty-hunter class: full helm, glowing visor, arm cannon.
+        const helm = MeshBuilder.CreateSphere("hHelm", { diameter: 0.68 * hs, slice: 0.72 }, scene);
+        helm.material = mat(scene, "hHelmM", color.secondary, 0.12);
+        helm.parent = headScaleNode;
+        helm.position.y = hy - 0.14;
+        const visorSlit = MeshBuilder.CreateBox("hVisor", { width: 0.42 * hs, height: 0.09 * hs, depth: 0.04 }, scene);
+        visorSlit.material = mat(scene, "hVisorM", "#4ed24e", 0.9);
+        visorSlit.parent = headScaleNode;
+        visorSlit.position.set(0, 0.26 * hs, 0.3 * hs);
+        const pauldron = MeshBuilder.CreateSphere("pauldron", { diameter: 0.3 }, scene);
+        pauldron.material = mat(scene, "pauldM", color.primary, 0.15);
+        pauldron.parent = visual;
+        pauldron.position.set(0.45 * body.width, 1.1, 0);
+        const cannon = MeshBuilder.CreateCylinder("cannon", { diameter: 0.2, height: 0.42 }, scene);
+        cannon.material = mat(scene, "cannonM", "#5b636e", 0.2);
+        cannon.parent = armL.pivot;
+        cannon.rotation.x = Math.PI / 2;
+        cannon.position.y = -armLen * 0.7;
         break;
       }
       case "hero": {

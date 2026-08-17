@@ -15,7 +15,7 @@ import { audio } from "../audio/audio";
 import { connection } from "../net/connection";
 import { settings, vibrate } from "../ui/settings";
 import { buildArena, type ArenaHandles } from "./arena";
-import { FIGHTER_KITS, createCharacter, type CharacterRig } from "./character";
+import { FIGHTER_KITS, createCharacter, type CharacterRig, type FighterKit as FIGHTER_KIT_T } from "./character";
 import { createGameScene, type GameScene } from "./engine";
 import { EffectsManager, shakeAmount } from "./effects";
 import { buildHazardVisual, buildPickupVisual, buildProjectileMesh, buildWeaponMesh } from "./items";
@@ -139,6 +139,7 @@ export class GameWorld {
     private participants: ParticipantSlot[],
     private myId: string | null, // null → spectator
     private hatPlayerId: string | null,
+    private kitOverrides?: Array<FIGHTER_KIT_T | undefined>,
   ) {
     const q = qualityParams();
     this.gs = createGameScene(canvas, q);
@@ -159,7 +160,7 @@ export class GameWorld {
       const rig = createCharacter(scene, slot.character, {
         withHat: slot.id === hatPlayerId,
         particleScale: q.particleScale,
-        kit: FIGHTER_KITS[slot.slotIndex % FIGHTER_KITS.length],
+        kit: this.kitOverrides?.[slot.slotIndex] ?? FIGHTER_KITS[slot.slotIndex % FIGHTER_KITS.length],
       });
       if (this.gs.shadows) for (const m of rig.meshes) this.gs.shadows.addShadowCaster(m);
       rig.setNameplate(slot.name, 1, slot.status === "ai");

@@ -7,7 +7,7 @@ import type { Rng } from "../rng.js";
  */
 const LINES: Record<string, string[]> = {
   matchStart: [
-    "Welcome to the Disaster Dome, where friendships come to be waived!",
+    "Welcome to the Smash Dome, where friendships come to be waived!",
     "Twelve managers enter. One leaves with the first pick. The rest leave with excuses!",
     "Remember folks: this is legally binding. Probably!",
   ],

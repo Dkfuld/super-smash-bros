@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ParticipantSlot } from "@ddd/shared";
 import { GameWorld, type SpectatorCam } from "../game/world";
+import type { FighterKit } from "../game/character";
 import { Controls } from "./Controls";
 import { HUD } from "./HUD";
 import { PortraitGate } from "./PortraitGate";
@@ -15,11 +16,13 @@ export function GameView({
   myId,
   spectatorUi,
   initialFocusId,
+  kits,
 }: {
   participants: ParticipantSlot[];
   myId: string | null;
   spectatorUi?: boolean;
   initialFocusId?: string | null;
+  kits?: Array<FighterKit | undefined>;
 }): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [world, setWorld] = useState<GameWorld | null>(null);
@@ -31,7 +34,7 @@ export function GameView({
     const canvas = canvasRef.current;
     if (!canvas) return;
     const hatId = participants.find((p) => p.isPreviousLoser)?.id ?? null;
-    const w = new GameWorld(canvas, participants, myId, hatId);
+    const w = new GameWorld(canvas, participants, myId, hatId, kits);
     if (initialFocusId) w.setFocus(initialFocusId);
     setWorld(w);
     return () => w.dispose();
