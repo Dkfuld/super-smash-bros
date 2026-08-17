@@ -251,7 +251,7 @@ async function renderResultsCard(results: MatchResults): Promise<Blob> {
   ctx.textAlign = "center";
   ctx.fillStyle = "#ffd23f";
   ctx.font = "900 64px system-ui, sans-serif";
-  ctx.fillText("DRAFT DAY: DISASTER DOME", W / 2, 100);
+  ctx.fillText("SMASH DOME — DRAFT BATTLE", W / 2, 100);
   ctx.fillStyle = "#f4f0ff";
   ctx.font = "700 40px system-ui, sans-serif";
   ctx.fillText(results.leagueName, W / 2, 160);

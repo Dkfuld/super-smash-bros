@@ -109,7 +109,7 @@ export function buildArena(scene: Scene, layout: ArenaLayout, q: QualityParams):
     ctx.fillStyle = "#ffd23f";
     ctx.font = "bold 44px system-ui, sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText("DISASTER", 512, 500);
+    ctx.fillText("SMASH", 512, 500);
     ctx.fillText("DOME", 512, 548);
     floorTex.update();
   }
@@ -646,7 +646,7 @@ export function buildArena(scene: Scene, layout: ArenaLayout, q: QualityParams):
     if (q.animatedProps) animated.push((dt) => (bladeRoot.rotation.y += dt * 5));
   }
   // hanging banners
-  const bannerTexts = ["DISASTER DOME", "DRAFT NIGHT LIVE", "12 ENTER · 1 PICKS FIRST", "NO REFUNDS"];
+  const bannerTexts = ["SMASH DOME", "DRAFT NIGHT LIVE", "12 ENTER · 1 PICKS FIRST", "NO REFUNDS"];
   bannerTexts.forEach((txt, i) => {
     const tex = textTexture(scene, txt, { w: 512, h: 170, bg: ["#3a2a6e", "#8f1f4b", "#1d5c46", "#7a3b12"][i] ?? "#333", fg: "#ffe9a3" });
     const bMat = new StandardMaterial(`banner${i}`, scene);

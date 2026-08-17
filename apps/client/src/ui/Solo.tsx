@@ -59,20 +59,25 @@ const DEMO_NAMES = [
 ];
 
 function paceSettings(pace: "quick" | "full"): MatchSettings {
+  // Tuned so eliminations come from fights, not zone attrition: gentler
+  // shrink, fewer hazards, more weapons in play.
   return pace === "quick"
-    ? { ...DEFAULT_SETTINGS, matchDurationTargetSec: 150, suddenDeathAtSec: 150, chaosLevel: 2, weaponDropRate: 1.6, hazardFrequency: 1.5 }
-    : { ...DEFAULT_SETTINGS, matchDurationTargetSec: 300, suddenDeathAtSec: 330, chaosLevel: 2, weaponDropRate: 1.3, hazardFrequency: 1.2 };
+    ? { ...DEFAULT_SETTINGS, matchDurationTargetSec: 180, suddenDeathAtSec: 190, chaosLevel: 1, weaponDropRate: 1.8, hazardFrequency: 0.9, zoneShrinkSpeed: 0.9 }
+    : { ...DEFAULT_SETTINGS, matchDurationTargetSec: 300, suddenDeathAtSec: 330, chaosLevel: 1, weaponDropRate: 1.5, hazardFrequency: 1, zoneShrinkSpeed: 0.9 };
 }
 
 export function Solo({ blob }: { blob: string | null }): JSX.Element {
   const fromLink = blob ? decodeSoloConfig(blob) : null;
   const [cfg, setCfg] = useState<SoloConfig | null>(fromLink);
+  const [cameFromLink] = useState(fromLink !== null);
   const [invalidLink] = useState(blob !== null && fromLink === null);
 
   if (!cfg) {
     return <SoloSetup onStart={setCfg} invalidLink={invalidLink} />;
   }
-  return <SoloMatch cfg={cfg} onExit={() => setCfg(null)} />;
+  // Fresh setups pass through the share gate; shared links auto-play so the
+  // whole league just taps and watches.
+  return <SoloMatch cfg={cfg} autoStart={cameFromLink} onExit={() => setCfg(null)} />;
 }
 
 function SoloSetup({ onStart, invalidLink }: { onStart: (c: SoloConfig) => void; invalidLink: boolean }): JSX.Element {
@@ -89,7 +94,7 @@ function SoloSetup({ onStart, invalidLink }: { onStart: (c: SoloConfig) => void;
     <div className="screen" style={{ justifyContent: "flex-start", paddingTop: "max(1.2rem, env(safe-area-inset-top))" }}>
       <SettingsPanel />
       <div style={{ fontSize: "2.6rem" }}>🎲</div>
-      <h1 className="title" style={{ fontSize: "1.8rem" }}>DRAFT ORDER SIMULATOR</h1>
+      <h1 className="title" style={{ fontSize: "1.8rem" }}>SMASH DOME</h1>
       <p className="subtitle">
         Enter your 12 league members, pick last season's loser, and watch an epic (rigged-by-fate) 3D battle decide the
         draft order. Share the link and everyone's phone replays the <em>exact same match</em>.
@@ -181,7 +186,7 @@ function SoloSetup({ onStart, invalidLink }: { onStart: (c: SoloConfig) => void;
   );
 }
 
-function SoloMatch({ cfg, onExit }: { cfg: SoloConfig; onExit: () => void }): JSX.Element {
+function SoloMatch({ cfg, autoStart, onExit }: { cfg: SoloConfig; autoStart: boolean; onExit: () => void }): JSX.Element {
   const [participants] = useState<ParticipantSlot[]>(() =>
     cfg.names.map((name, i) => ({
       slotIndex: i,
@@ -197,6 +202,7 @@ function SoloMatch({ cfg, onExit }: { cfg: SoloConfig; onExit: () => void }): JS
   const [results, setResults] = useState<MatchResults | null>(null);
   const [showResults, setShowResults] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [started, setStarted] = useState(autoStart);
   const matchRef = useRef<Match | null>(null);
 
   // Embedded viewers can't carry URL params, so share the raw match code there;
@@ -204,15 +210,23 @@ function SoloMatch({ cfg, onExit }: { cfg: SoloConfig; onExit: () => void }): JS
   const code = encodeSoloConfig(cfg);
   const shareText = isEmbedded() ? code : `${location.origin}${location.pathname}?sim=${code}`;
   const doShare = (setFlag: (b: boolean) => void): void => {
-    void copyText(shareText).then((ok) => {
-      if (ok) {
-        setFlag(true);
-        setTimeout(() => setFlag(false), 1500);
-      }
-    });
+    // Native share sheet on phones (texts/WhatsApp/etc.), clipboard elsewhere.
+    const message = `🏟️ ${cfg.league} DRAFT ORDER BATTLE — watch the match that decides our picks:`;
+    if (navigator.share && !isEmbedded()) {
+      navigator
+        .share({ title: "Draft Day: Disaster Dome", text: message, url: shareText })
+        .catch(() => void copyText(shareText).then((ok) => ok && flagCopied(setFlag)));
+    } else {
+      void copyText(isEmbedded() ? shareText : `${message} ${shareText}`).then((ok) => ok && flagCopied(setFlag));
+    }
+  };
+  const flagCopied = (setFlag: (b: boolean) => void): void => {
+    setFlag(true);
+    setTimeout(() => setFlag(false), 1600);
   };
 
   useEffect(() => {
+    if (!started) return;
     const match = new Match({
       matchId: `solo_${cfg.seed.toString(36)}`,
       roomCode: "SOLO",
@@ -254,7 +268,35 @@ function SoloMatch({ cfg, onExit }: { cfg: SoloConfig; onExit: () => void }): JS
     };
     // The match must never restart mid-run: cfg is immutable for this mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [started]);
+
+  // Share gate: lock the match in and blast the link to the league first.
+  if (!started) {
+    return (
+      <div className="screen">
+        <div style={{ fontSize: "2.6rem" }}>📲</div>
+        <h1 className="title" style={{ fontSize: "1.7rem" }}>MATCH LOCKED IN</h1>
+        <p className="subtitle">
+          Send this link to the league <strong>before</strong> you hit start — everyone who opens it watches the{" "}
+          <em>exact same battle</em> and the <em>exact same draft order</em> on their own phone. No arguments possible.
+        </p>
+        <div className="panel" style={{ display: "flex", flexDirection: "column", gap: "0.7rem" }}>
+          <button className="btn gold" style={{ fontSize: "1.15rem" }} onClick={() => doShare(setCopied)}>
+            {copied ? "✓ Copied — paste it in the group chat" : "📲 SHARE WITH THE LEAGUE"}
+          </button>
+          <button className="btn secondary" onClick={() => { void copyText(shareText).then((ok) => ok && flagCopied(setCopied)); }}>
+            📋 Just copy the {isEmbedded() ? "match code" : "link"}
+          </button>
+          <button className="btn" style={{ fontSize: "1.15rem" }} onClick={() => { audio.unlock(); setStarted(true); }}>
+            ▶ START THE SHOW
+          </button>
+        </div>
+        <p style={{ fontSize: "0.75rem", color: "var(--text-dim)", maxWidth: "26rem", textAlign: "center" }}>
+          Anyone opening the link later sees the same match from the beginning — start whenever you're ready.
+        </p>
+      </div>
+    );
+  }
 
   if (showResults && results) {
     return (

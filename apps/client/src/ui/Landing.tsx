@@ -10,7 +10,7 @@ export function Landing(): JSX.Element {
     <div className="screen">
       <SettingsPanel />
       <div style={{ fontSize: "3rem" }}>🏟️</div>
-      <h1 className="title">DRAFT DAY:<br />DISASTER DOME</h1>
+      <h1 className="title">SMASH DOME</h1>
       <p className="subtitle">
         Twelve league members. One chaotic 3D arena. The order you get eliminated is your fantasy draft order. First one
         out picks last. Last one standing picks first. No takebacks.

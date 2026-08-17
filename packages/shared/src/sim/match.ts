@@ -659,6 +659,8 @@ export class Match {
       f.anim = "heavy";
       f.animUntil = this.tickNo + ms(400);
       f.pendingHit = { tick: this.tickNo + ms(SIM.PUNCH_WINDUP_MS * 1.4), heavy: true, charge: frac, weapon: f.weapon };
+      f.vx += Math.sin(f.yaw) * (5 + frac * 3);
+      f.vz += Math.cos(f.yaw) * (5 + frac * 3);
       return;
     }
     if (f.chargeStart !== null) return; // charging blocks other attacks
@@ -671,12 +673,20 @@ export class Match {
     const atkPressed = (input.atk ?? false) && !f.prevAtk;
     const atkHeld = input.atk ?? false;
 
+    // Melee attacks lunge forward so fights read as committed brawls,
+    // not two figures pawing at the air.
+    const lunge = (power: number): void => {
+      f.vx += Math.sin(f.yaw) * power;
+      f.vz += Math.cos(f.yaw) * power;
+    };
+
     if (!weapon) {
       if (atkPressed && this.tickNo >= f.attackReadyAt) {
         f.attackReadyAt = this.tickNo + ms(SIM.PUNCH_INTERVAL_MS);
         f.anim = "attack";
         f.animUntil = this.tickNo + ms(300);
         f.pendingHit = { tick: this.tickNo + ms(SIM.PUNCH_WINDUP_MS), heavy: false, charge: 0, weapon: null };
+        lunge(4.5);
       }
       return;
     }
@@ -688,6 +698,7 @@ export class Match {
           f.anim = "attack";
           f.animUntil = this.tickNo + ms(Math.min(350, weapon.attackIntervalMs));
           f.pendingHit = { tick: this.tickNo + ms(SIM.PUNCH_WINDUP_MS), heavy: false, charge: 0, weapon: weapon.id };
+          lunge(4);
         }
         break;
       case "projectile":

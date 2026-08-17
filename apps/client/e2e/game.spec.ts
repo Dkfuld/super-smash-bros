@@ -38,7 +38,7 @@ for (const vp of VIEWPORTS) {
     const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, hasTouch: true });
     const page = await ctx.newPage();
     await page.goto("/");
-    await expect(page.locator(".title")).toContainText("DISASTER DOME");
+    await expect(page.locator(".title")).toContainText("SMASH DOME");
     await expect(page.locator("text=Host a live")).toBeVisible();
     await ctx.close();
   });

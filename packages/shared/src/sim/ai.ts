@@ -169,15 +169,16 @@ export class AiController {
       }
     }
 
-    // 2) get back inside the zone
+    // 2) get back inside the zone — with a generous margin, and head deep
+    // inside rather than hugging the edge (edge-huggers died "to nobody",
+    // which made eliminations feel random instead of earned in fights).
     const myR = Math.hypot(me.x, me.z);
-    if (myR > w.zoneRadius - 2.5) {
-      const toC = Math.atan2(-me.x, -me.z);
+    const margin = Math.max(3.5, w.zoneRadius * 0.2);
+    if (myR > w.zoneRadius - margin) {
+      const inner = Math.max(2, w.zoneRadius * 0.5);
+      const a = myR > 0.01 ? Math.atan2(me.x, me.z) : this.rng.range(0, Math.PI * 2);
       this.mode = "zoneReturn";
-      this.waypoint = {
-        x: me.x + Math.sin(toC) * (myR - w.zoneRadius + 7),
-        z: me.z + Math.cos(toC) * (myR - w.zoneRadius + 7),
-      };
+      this.waypoint = { x: Math.sin(a) * inner, z: Math.cos(a) * inner };
       return;
     }
 
@@ -217,7 +218,9 @@ export class AiController {
     const lootPhase = w.tick < 30 * 30;
     for (const e of enemies) {
       const d = Math.hypot(e.x - me.x, e.z - me.z);
-      let s = this.traits.aggression * (1.2 - Math.min(1, d / 40)) * (lootPhase ? 0.3 : 1);
+      // After looting, everyone wants a fight — combat kills should decide
+      // the draft order, not attrition.
+      let s = this.traits.aggression * (1.35 - Math.min(1, d / 40)) * (lootPhase ? 0.3 : 1.25);
       s += (1 - e.hp / e.maxHp) * 0.5; // finish weakened players
       if (e.id === this.grudge) s += this.traits.revenge * 0.7;
       if (e.hat) s += this.traits.hatHunter * 0.8;

@@ -42,7 +42,7 @@ export const SIM = {
   WAKEUP_IFRAMES_MS: 900,
   LAUNCH_UP_RATIO: 0.45, // portion of knockback applied vertically
 
-  ZONE_DAMAGE_PER_SEC_BASE: 4, // scales with stage
+  ZONE_DAMAGE_PER_SEC_BASE: 3, // scales with stage; herds more than it kills
   ZONE_GRACE_SEC: 3, // grace before damage starts ticking for a player newly outside
 
   PICKUP_RADIUS: 1.3,

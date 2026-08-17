@@ -120,6 +120,7 @@ export class GameWorld {
   private specFollowId: string | null = null;
   private directorTarget: string | null = null;
   private directorSwitchAt = 0;
+  private directorCut = false;
   private myPlacementPick: number | null = null;
   private elimOrder: string[] = [];
   private elimsBy = new Map<string, number>();
@@ -631,17 +632,51 @@ export class GameWorld {
           this.updateCamShake(dt);
           return; // user-controlled; leave camera alone
         default: {
-          // Automatic director: prefer combat, low HP, the hat player, final fights.
-          if (this.t > this.directorSwitchAt || !this.directorTarget) {
-            this.directorSwitchAt = this.t + 5;
+          // Cinematic director: frame the most interesting fighter together
+          // with their nearest opponent from a low broadcast angle, cutting
+          // between subjects instead of drifting across the whole arena.
+          const cur = this.directorTarget ? this.fighters.get(this.directorTarget) : null;
+          if (this.t > this.directorSwitchAt || !cur || !cur.next || cur.next.eliminated) {
+            this.directorSwitchAt = this.t + 6;
             const candidates = [...this.fighters.values()].filter((f) => f.next && !f.next.eliminated);
             candidates.sort((a, b) => scoreInterest(b, this.hatPlayerId) - scoreInterest(a, this.hatPlayerId));
-            this.directorTarget = candidates[0]?.slot.id ?? null;
+            const next = candidates[0]?.slot.id ?? null;
+            if (next !== this.directorTarget) this.directorCut = true;
+            this.directorTarget = next;
           }
           const f = this.directorTarget ? this.fighters.get(this.directorTarget) : null;
           if (f) {
-            target = f.rig.root.position.add(new Vector3(0, 1.2, 0));
-            camPos = f.rig.root.position.add(new Vector3(Math.sin(this.t * 0.12) * 12, 13, Math.cos(this.t * 0.12) * -12 - 2));
+            const fpos = f.rig.root.position;
+            // Nearest living opponent — frame the fight, not a lone jogger.
+            let mate: Vector3 | null = null;
+            let md = 16;
+            for (const o of this.fighters.values()) {
+              if (o === f || !o.next || o.next.eliminated) continue;
+              const d = Vector3.Distance(o.rig.root.position, fpos);
+              if (d < md) {
+                md = d;
+                mate = o.rig.root.position;
+              }
+            }
+            const mid = mate ? Vector3.Lerp(fpos, mate, 0.4) : fpos.clone();
+            target = mid.add(new Vector3(0, 1.3, 0));
+            const sep = mate ? md : 7;
+            const dist = Math.min(12, 5.5 + sep * 0.7);
+            // Shoot from between the action and the arena center, looking
+            // outward — keeps the crowd wall as backdrop and never clips it.
+            const flat = new Vector3(mid.x, 0, mid.z);
+            const outward = flat.length() > 2 ? flat.normalize() : new Vector3(Math.sin(this.t * 0.1), 0, Math.cos(this.t * 0.1));
+            const perp = new Vector3(-outward.z, 0, outward.x).scaleInPlace(Math.sin(this.t * 0.22) * 0.45);
+            camPos = mid
+              .subtract(outward.scale(dist * 0.85))
+              .add(perp.scale(dist))
+              .add(new Vector3(0, 2.8 + dist * 0.38, 0));
+            if (this.directorCut) {
+              // Hard cut: broadcast cameras cut, they don't fly.
+              this.directorCut = false;
+              this.camera.position.copyFrom(camPos);
+              this.camTarget.copyFrom(target);
+            }
           }
         }
       }
