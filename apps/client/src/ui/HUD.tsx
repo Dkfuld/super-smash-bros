@@ -16,6 +16,7 @@ export function HUD({ world, isPlayer }: { world: GameWorld; isPlayer: boolean }
   const [yippee, setYippee] = useState<{ id: number; name: string } | null>(null);
   const [banner, setBanner] = useState<{ h1: string; h2?: string } | null>(null);
   const [splats, setSplats] = useState<Array<{ id: number; big: boolean; blobs: Array<{ x: number; y: number; r: number }> }>>([]);
+  const [koWord, setKoWord] = useState<{ id: number; word: string; rot: number } | null>(null);
   const feedId = useRef(1);
   const captionTimer = useRef<number | null>(null);
   const bannerTimer = useRef<number | null>(null);
@@ -64,13 +65,19 @@ export function HUD({ world, isPlayer }: { world: GameWorld; isPlayer: boolean }
           case "splat": {
             if (settings.flashReduction) break;
             const id = feedId.current++;
-            const blobs = Array.from({ length: n.big ? 9 : 4 }, () => ({
-              x: 8 + Math.random() * 84,
-              y: 8 + Math.random() * 84,
-              r: (n.big ? 14 : 7) + Math.random() * (n.big ? 18 : 9),
+            const blobs = Array.from({ length: n.big ? 14 : 8 }, () => ({
+              x: 4 + Math.random() * 92,
+              y: 4 + Math.random() * 92,
+              r: (n.big ? 16 : 10) + Math.random() * (n.big ? 22 : 12),
             }));
             setSplats((s) => [...s.slice(-2), { id, big: n.big, blobs }]);
-            setTimeout(() => setSplats((s) => s.filter((x) => x.id !== id)), n.big ? 1400 : 900);
+            setTimeout(() => setSplats((s) => s.filter((x) => x.id !== id)), n.big ? 1700 : 1100);
+            break;
+          }
+          case "koWord": {
+            const id = feedId.current++;
+            setKoWord({ id, word: n.word, rot: -14 + Math.random() * 28 });
+            setTimeout(() => setKoWord((k) => (k?.id === id ? null : k)), 1100);
             break;
           }
         }
@@ -189,6 +196,12 @@ export function HUD({ world, isPlayer }: { world: GameWorld; isPlayer: boolean }
           }}
         />
       ))}
+
+      {koWord && (
+        <div className="ko-word" style={{ transform: `translate(-50%, -50%) rotate(${koWord.rot}deg)` }}>
+          {koWord.word}
+        </div>
+      )}
 
       {hud?.outsideZone && !hud.eliminated && !settings.flashReduction && <div className="hud-vignette" />}
       {hud?.blind && <div className="hud-blind" />}

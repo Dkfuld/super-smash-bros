@@ -75,7 +75,8 @@ export type UiNotice =
   | { kind: "victory"; playerName: string }
   | { kind: "focusOut"; pick: number }
   | { kind: "focusWin" }
-  | { kind: "splat"; big: boolean };
+  | { kind: "splat"; big: boolean }
+  | { kind: "koWord"; word: string };
 
 export type SpectatorCam = "director" | "follow" | "overhead" | "arena" | "free";
 
@@ -126,6 +127,8 @@ export class GameWorld {
   private directorTarget: string | null = null;
   private directorSwitchAt = 0;
   private directorCut = false;
+  private killCamPos: Vector3 | null = null;
+  private killCamUntil = 0;
   private myPlacementPick: number | null = null;
   private elimOrder: string[] = [];
   private elimsBy = new Map<string, number>();
@@ -332,8 +335,22 @@ export class GameWorld {
           this.camShake = Math.max(this.camShake, shakeAmount(0.35));
           const isFocusDeath = ev.record.playerId === (this.myId ?? this.focusId);
           this.notice({ kind: "splat", big: isFocusDeath });
+          this.notice({ kind: "koWord", word: KO_WORDS[Math.floor(Math.random() * KO_WORDS.length)] ?? "BODIED!" });
+          // Kill cam: the director cuts to the scene of the crime.
+          if (e) {
+            this.killCamPos = e.rig.root.position.clone();
+            this.killCamUntil = this.t + 1.7;
+            this.directorCut = true;
+          }
           if (ev.record.playerId === this.focusId) {
             this.notice({ kind: "focusOut", pick: 12 - this.elimOrder.indexOf(ev.record.playerId) });
+            // Give the personal banner a beat, then hand over to the director.
+            const deadId = ev.record.playerId;
+            setTimeout(() => {
+              if (this.specCam === "follow" && (this.specFollowId ?? this.focusId) === deadId) {
+                this.specCam = "director";
+              }
+            }, 2800);
           }
           this.notice({ kind: "feed", text: `❌ ${ev.record.playerName} eliminated${ev.record.byPlayerId ? ` by ${this.nameOf(ev.record.byPlayerId)}` : ""}` });
           if (ev.record.playerId === this.myId) {
@@ -675,6 +692,20 @@ export class GameWorld {
           this.updateCamShake(dt);
           return; // user-controlled; leave camera alone
         default: {
+          // Kill cam: linger on the elimination site for a beat.
+          if (this.killCamPos && this.t < this.killCamUntil) {
+            const kp = this.killCamPos;
+            target = kp.add(new Vector3(0, 1.2, 0));
+            const flatK = new Vector3(kp.x, 0, kp.z);
+            const outK = flatK.length() > 2 ? flatK.normalize() : new Vector3(0, 0, 1);
+            camPos = kp.subtract(outK.scale(6)).add(new Vector3(0, 4.2, 0));
+            if (this.directorCut) {
+              this.directorCut = false;
+              this.camera.position.copyFrom(camPos);
+              this.camTarget.copyFrom(target);
+            }
+            break;
+          }
           // Cinematic director: frame the most interesting fighter together
           // with their nearest opponent from a low broadcast angle, cutting
           // between subjects instead of drifting across the whole arena.
@@ -798,6 +829,11 @@ export class GameWorld {
     for (const fn of this.hudListeners) fn(h);
   }
 }
+
+const KO_WORDS = [
+  "BODIED!", "YEETED!", "WAIVED!", "AUTO-DRAFTED!", "SENT HOME!", "COOKED!",
+  "BENCHED!", "DROPPED!", "OBLITERATED!", "GG NO RE!", "TO THE SHADOW REALM!", "DELETED!",
+];
 
 function lerpAngle(a: number, b: number, f: number): number {
   let d = b - a;

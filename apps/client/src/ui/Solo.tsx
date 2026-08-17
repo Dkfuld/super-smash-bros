@@ -350,9 +350,9 @@ function SoloMatch({ cfg, autoStart, onExit }: { cfg: SoloConfig; autoStart: boo
     <>
       <GameView participants={participants} myId={null} spectatorUi initialFocusId={focus} />
       <SettingsPanel />
-      <div className="row" style={{ position: "fixed", bottom: "0.6rem", left: "0.6rem", zIndex: 300 }}>
+      <div className="row" style={{ position: "fixed", top: "max(0.5rem, env(safe-area-inset-top))", left: "max(0.5rem, env(safe-area-inset-left))", zIndex: 300 }}>
         <button className="btn small secondary" onClick={() => doShare(setCopied)}>
-          {copied ? "✓ Copied" : isEmbedded() ? "🔗 Copy match code" : "🔗 Copy match link"}
+          {copied ? "✓ Copied" : "🔗 Share"}
         </button>
         <button className="btn small secondary" onClick={() => matchRef.current?.hostSkipIntro()}>
           ⏭

@@ -1311,6 +1311,11 @@ export class Match {
         by.stats.eliminations++;
         if (q.cause !== "damage") by.stats.environmentalEliminations++;
         if (by.hat) this.yippee(by, "elimination");
+        // Showboat over the body. This league deserves it.
+        if (!by.eliminated && this.tickNo >= by.stunUntil) {
+          by.anim = "emote";
+          by.animUntil = this.tickNo + ms(1200);
+        }
       }
       if (f.hat) this.yippee(f, "eliminated", true);
 
@@ -1457,6 +1462,7 @@ export class Match {
    */
   aiWorld(): {
     tick: number;
+    playTick: number;
     zoneRadius: number;
     layout: ArenaLayout;
     fighters: Map<string, Fighter>;
@@ -1468,6 +1474,7 @@ export class Match {
     for (const f of this.fighters.values()) if (this.hasEffect(f, "invisible")) hidden.add(f.id);
     return {
       tick: this.tickNo,
+      playTick: this.playTicks,
       zoneRadius: this.zoneRadius,
       layout: this.layout,
       fighters: this.fighters,

@@ -222,7 +222,7 @@ input, select, textarea { font: inherit; }
 
 .hud-caption {
   position: absolute;
-  bottom: calc(1rem + env(safe-area-inset-bottom));
+  bottom: calc(4rem + env(safe-area-inset-bottom));
   left: 50%;
   transform: translateX(-50%);
   max-width: min(80vw, 40rem);
@@ -458,9 +458,31 @@ input, select, textarea { font: inherit; }
   inset: 0;
   pointer-events: none;
   z-index: 25;
-  animation: splatFade 0.9s ease-out forwards;
+  animation: splatFade 1.1s ease-out forwards;
 }
-.splat.big { animation-duration: 1.4s; }
+.splat.big { animation-duration: 1.7s; box-shadow: inset 0 0 30vmin 6vmin rgba(214, 28, 48, 0.55); }
+
+.ko-word {
+  position: absolute;
+  top: 42%;
+  left: 50%;
+  z-index: 26;
+  font-size: clamp(2.2rem, 9vw, 4.5rem);
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  color: #fff;
+  -webkit-text-stroke: 2px #7a0e1c;
+  text-shadow: 0 5px 0 #7a0e1c, 0 10px 34px rgba(0, 0, 0, 0.6);
+  animation: koStamp 1.1s cubic-bezier(0.2, 1.7, 0.4, 1) forwards;
+  pointer-events: none;
+  white-space: nowrap;
+}
+@keyframes koStamp {
+  0% { opacity: 0; scale: 3; }
+  18% { opacity: 1; scale: 1; }
+  75% { opacity: 1; }
+  100% { opacity: 0; scale: 0.92; }
+}
 @keyframes splatFade {
   0% { opacity: 0; transform: scale(1.15); }
   12% { opacity: 1; transform: scale(1); }

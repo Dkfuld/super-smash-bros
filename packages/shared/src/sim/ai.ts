@@ -216,11 +216,15 @@ export class AiController {
     // hunt — dampened during the opening loot phase so matches don't start
     // with instant spawn mobbing (the first ~30s is for exploration/weapons)
     const lootPhase = w.tick < 30 * 30;
+    // Boredom: a fighter that hasn't traded a hit in ~12s goes looking for
+    // one. Nobody hides in this league — hiding is not content.
+    const bored = w.playTick - me.lastCombatTick > 30 * 12 && !lootPhase;
     for (const e of enemies) {
       const d = Math.hypot(e.x - me.x, e.z - me.z);
       // After looting, everyone wants a fight — combat kills should decide
       // the draft order, not attrition.
       let s = this.traits.aggression * (1.35 - Math.min(1, d / 40)) * (lootPhase ? 0.3 : 1.25);
+      if (bored) s += 0.8;
       s += (1 - e.hp / e.maxHp) * 0.2; // mild finisher instinct — no dogpiling one victim
       if (e.id === this.grudge) s += this.traits.revenge * 0.7;
       if (e.hat) s += this.traits.hatHunter * 0.8;
@@ -247,11 +251,17 @@ export class AiController {
         break;
       }
       default: {
-        // wander / camp: campers hug the zone edge behind cover, others roam
-        const a = this.rng.range(0, Math.PI * 2);
-        const r = this.traits.camper > 0.7 ? w.zoneRadius * 0.8 : this.rng.range(3, Math.max(4, w.zoneRadius * 0.6));
+        // Wander toward the action, never away from it: drift to a point near
+        // a random other fighter so the arena naturally clumps into brawls.
         this.targetId = null;
-        this.waypoint = { x: Math.sin(a) * r, z: Math.cos(a) * r };
+        if (enemies.length > 0 && this.rng.chance(0.7)) {
+          const near = enemies[this.rng.int(0, enemies.length - 1)]!;
+          this.waypoint = { x: near.x + this.rng.range(-4, 4), z: near.z + this.rng.range(-4, 4) };
+        } else {
+          const a = this.rng.range(0, Math.PI * 2);
+          const r = this.rng.range(3, Math.max(4, w.zoneRadius * 0.55));
+          this.waypoint = { x: Math.sin(a) * r, z: Math.cos(a) * r };
+        }
       }
     }
   }
