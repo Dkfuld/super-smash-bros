@@ -22,7 +22,7 @@ async function createRoomAsHost(browser: Browser): Promise<{ hostPage: Page; cod
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const hostPage = await ctx.newPage();
   await hostPage.goto("/");
-  await hostPage.click("text=Host a Draft Night");
+  await hostPage.click("text=Host a live");
   await hostPage.fill('input[placeholder*="Basement"]', "E2E League");
   await hostPage.fill("textarea", NAMES.join("\n"));
   await hostPage.click("text=Create the Dome");
@@ -39,7 +39,7 @@ for (const vp of VIEWPORTS) {
     const page = await ctx.newPage();
     await page.goto("/");
     await expect(page.locator(".title")).toContainText("DISASTER DOME");
-    await expect(page.locator("text=Host a Draft Night")).toBeVisible();
+    await expect(page.locator("text=Host a live")).toBeVisible();
     await ctx.close();
   });
 }
