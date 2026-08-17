@@ -10,6 +10,7 @@ interface FeedItem {
 /** In-match HUD: health, timers, kill feed, captions, big-moment banners. */
 export function HUD({ world, isPlayer }: { world: GameWorld; isPlayer: boolean }): JSX.Element {
   const [hud, setHud] = useState<HudState | null>(null);
+  const [boardOpen, setBoardOpen] = useState(!isPlayer); // spectators see standings by default
   const [feed, setFeed] = useState<FeedItem[]>([]);
   const [caption, setCaption] = useState<{ text: string; mood: string } | null>(null);
   const [yippee, setYippee] = useState<{ id: number; name: string } | null>(null);
@@ -102,6 +103,46 @@ export function HUD({ world, isPlayer }: { world: GameWorld; isPlayer: boolean }
           </div>
         ))}
       </div>
+
+      {hud && hud.phase !== "lobby" && (
+        <>
+          <button
+            className="board-toggle"
+            style={{ pointerEvents: "auto" }}
+            onClick={() => setBoardOpen((o) => !o)}
+            aria-label="Toggle leaderboard"
+          >
+            🏆
+          </button>
+          {boardOpen && (
+            <div className="leaderboard">
+              <div className="lb-title">LIVE STANDINGS</div>
+              {hud.board.map((r, i) => (
+                <div key={r.id} className={`lb-row ${r.eliminated ? "out" : ""} ${r.isMe ? "me" : ""}`}>
+                  <span className="lb-rank">{r.eliminated ? `#${r.pick}` : i + 1}</span>
+                  <span className="lb-name">
+                    {r.name}
+                    {r.hat ? " 🌈" : ""}
+                  </span>
+                  {r.eliminated ? (
+                    <span className="lb-out">💥 pick {r.pick}</span>
+                  ) : (
+                    <>
+                      {r.elims > 0 && <span className="lb-elims">⚔{r.elims}</span>}
+                      <span className="lb-hpbar">
+                        <span
+                          className="lb-hpfill"
+                          style={{ width: `${Math.min(100, r.hp)}%`, background: r.hp > 50 ? "var(--green)" : r.hp > 25 ? "var(--gold)" : "var(--red)" }}
+                        />
+                      </span>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
 
       {caption && (
         <div className="hud-caption">

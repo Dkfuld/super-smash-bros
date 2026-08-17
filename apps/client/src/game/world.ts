@@ -15,7 +15,7 @@ import { audio } from "../audio/audio";
 import { connection } from "../net/connection";
 import { settings, vibrate } from "../ui/settings";
 import { buildArena, type ArenaHandles } from "./arena";
-import { createCharacter, type CharacterRig } from "./character";
+import { FIGHTER_KITS, createCharacter, type CharacterRig } from "./character";
 import { createGameScene, type GameScene } from "./engine";
 import { EffectsManager, shakeAmount } from "./effects";
 import { buildHazardVisual, buildPickupVisual, buildProjectileMesh, buildWeaponMesh } from "./items";
@@ -30,6 +30,18 @@ export interface InputState {
   jump: boolean;
   pickup: boolean;
   emote: boolean;
+}
+
+export interface BoardRow {
+  id: string;
+  name: string;
+  hp: number;
+  eliminated: boolean;
+  /** Locked draft pick for eliminated players; null while still alive. */
+  pick: number | null;
+  elims: number;
+  hat: boolean;
+  isMe: boolean;
 }
 
 export interface HudState {
@@ -50,6 +62,8 @@ export interface HudState {
   powerups: string[];
   blind: boolean;
   fps: number;
+  /** Live standings: alive fighters by HP, then eliminated with locked picks. */
+  board: BoardRow[];
 }
 
 export type UiNotice =
@@ -107,6 +121,8 @@ export class GameWorld {
   private directorTarget: string | null = null;
   private directorSwitchAt = 0;
   private myPlacementPick: number | null = null;
+  private elimOrder: string[] = [];
+  private elimsBy = new Map<string, number>();
   private disposed = false;
 
   constructor(
@@ -134,6 +150,7 @@ export class GameWorld {
       const rig = createCharacter(scene, slot.character, {
         withHat: slot.id === hatPlayerId,
         particleScale: q.particleScale,
+        kit: FIGHTER_KITS[slot.slotIndex % FIGHTER_KITS.length],
       });
       if (this.gs.shadows) for (const m of rig.meshes) this.gs.shadows.addShadowCaster(m);
       rig.setNameplate(slot.name, 1, slot.status === "ai");
@@ -285,10 +302,18 @@ export class GameWorld {
         case "elimination": {
           const e = this.fighters.get(ev.record.playerId);
           if (e) {
-            e.koLaunched = true;
+            // Explode and disappear: big burst at the fighter, rig gone instantly.
             this.effects.ko(e.rig.root.position.add(new Vector3(0, 1, 0)));
+            this.effects.confetti(e.rig.root.position.add(new Vector3(0, 1.5, 0)), false);
+            e.koLaunched = false;
+            e.rig.setVisibility(0);
+          }
+          this.elimOrder.push(ev.record.playerId);
+          if (ev.record.byPlayerId) {
+            this.elimsBy.set(ev.record.byPlayerId, (this.elimsBy.get(ev.record.byPlayerId) ?? 0) + 1);
           }
           audio.play("elimination");
+          audio.play("partyBoom");
           this.notice({ kind: "feed", text: `❌ ${ev.record.playerName} eliminated${ev.record.byPlayerId ? ` by ${this.nameOf(ev.record.byPlayerId)}` : ""}` });
           if (ev.record.playerId === this.myId) {
             this.myPlacementPick = 12 - [...this.fighters.values()].filter((f) => f.next?.eliminated).length + 1;
@@ -476,17 +501,7 @@ export class GameWorld {
       const invisible = b.powerups.includes("invisibility");
       e.rig.setVisibility(b.eliminated ? (e.koLaunched ? 1 : 0) : invisible ? (isMe ? 0.35 : 0.06) : 1);
 
-      // KO fling: after elimination the rig tumbles up and away, then hides.
-      if (b.eliminated && e.koLaunched) {
-        e.rig.root.position.y += dt * 9;
-        e.rig.root.position.x += Math.sin(id.length + this.t) * dt * 4;
-        e.rig.setAnim("ko");
-        e.rig.update(dt, 1);
-        if (e.rig.root.position.y > 24) {
-          e.koLaunched = false;
-          e.rig.setVisibility(0);
-        }
-      }
+      // Eliminated fighters exploded at the elimination event — stay hidden.
 
       e.rig.setNameplate(e.slot.name, Math.max(0, b.hp) / (this.latestSnap ? Math.max(1, maxHpOf(this.latestSnap, b)) : 100), e.slot.status === "ai" || e.slot.connStatus === "ai-takeover");
     }
@@ -661,6 +676,27 @@ export class GameWorld {
         }
       }
     }
+    const board: BoardRow[] = this.participants
+      .map((p) => {
+        const f = snap.fighters.find((x) => x.id === p.id);
+        const elimIdx = this.elimOrder.indexOf(p.id);
+        return {
+          id: p.id,
+          name: p.name,
+          hp: f ? Math.max(0, f.hp) : 0,
+          eliminated: f?.eliminated ?? false,
+          pick: elimIdx >= 0 ? 12 - elimIdx : null,
+          elims: this.elimsBy.get(p.id) ?? 0,
+          hat: f?.hat ?? false,
+          isMe: p.id === this.myId,
+        };
+      })
+      .sort((a, b) => {
+        if (a.eliminated !== b.eliminated) return a.eliminated ? 1 : -1;
+        if (!a.eliminated) return b.hp - a.hp || b.elims - a.elims;
+        return (a.pick ?? 99) - (b.pick ?? 99);
+      });
+
     const h: HudState = {
       hp: me?.hp ?? 0,
       maxHp: 100,
@@ -679,6 +715,7 @@ export class GameWorld {
       powerups: me?.powerups ?? [],
       blind: performance.now() < this.blindUntil,
       fps: Math.round(this.gs.engine.getFps()),
+      board,
     };
     for (const fn of this.hudListeners) fn(h);
   }

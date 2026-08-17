@@ -2,7 +2,7 @@ import { FreeCamera, Vector3 } from "@babylonjs/core";
 import { DISASTER_DOME, SIM, collidesBlocking, supportHeight, type ParticipantSlot } from "@ddd/shared";
 import { audio } from "../audio/audio";
 import { buildArena, type ArenaHandles } from "./arena";
-import { createCharacter, type CharacterRig } from "./character";
+import { FIGHTER_KITS, createCharacter, type CharacterRig } from "./character";
 import { createGameScene, type GameScene } from "./engine";
 import { qualityParams } from "./quality";
 import type { InputState } from "./world";
@@ -42,6 +42,7 @@ export class LobbyWorld {
     this.me = createCharacter(this.gs.scene, mySlot.character, {
       withHat: mySlot.isPreviousLoser,
       particleScale: q.particleScale,
+      kit: FIGHTER_KITS[mySlot.slotIndex % FIGHTER_KITS.length],
     });
     this.me.setNameplate(mySlot.name, 1, false);
     this.me.root.position.copyFrom(this.pos);
@@ -66,7 +67,10 @@ export class LobbyWorld {
         existing.rig.setNameplate(slot.name, 1, slot.status === "ai");
         continue;
       }
-      const rig = createCharacter(this.gs.scene, slot.character, { withHat: slot.isPreviousLoser });
+      const rig = createCharacter(this.gs.scene, slot.character, {
+        withHat: slot.isPreviousLoser,
+        kit: FIGHTER_KITS[slot.slotIndex % FIGHTER_KITS.length],
+      });
       rig.setNameplate(slot.name, 1, slot.status === "ai");
       const sp = DISASTER_DOME.spawnPoints[slot.slotIndex] ?? { x: 0, z: 0 };
       rig.root.position.set(sp.x * 0.8, 0, sp.z * 0.8);

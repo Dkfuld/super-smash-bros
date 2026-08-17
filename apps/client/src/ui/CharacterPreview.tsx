@@ -1,10 +1,10 @@
 import { useEffect, useRef } from "react";
 import { Color4, Engine, FreeCamera, HemisphericLight, MeshBuilder, Scene, StandardMaterial, Color3, Vector3 } from "@babylonjs/core";
 import type { CharacterConfig } from "@ddd/shared";
-import { createCharacter, type CharacterRig } from "../game/character";
+import { createCharacter, type CharacterRig, type FighterKit } from "../game/character";
 
 /** Live 3D character preview used in onboarding — the fighter idles and shows off. */
-export function CharacterPreview({ config, withHat }: { config: CharacterConfig; withHat: boolean }): JSX.Element {
+export function CharacterPreview({ config, withHat, kit }: { config: CharacterConfig; withHat: boolean; kit?: FighterKit }): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rigRef = useRef<CharacterRig | null>(null);
   const sceneRef = useRef<Scene | null>(null);
@@ -54,7 +54,7 @@ export function CharacterPreview({ config, withHat }: { config: CharacterConfig;
     const scene = sceneRef.current;
     if (!scene) return;
     rigRef.current?.dispose();
-    const rig = createCharacter(scene, config, { withHat });
+    const rig = createCharacter(scene, config, { withHat, ...(kit ? { kit } : {}) });
     rig.setAnim("idle");
     rig.setNameplate("", 1, false);
     rigRef.current = rig;

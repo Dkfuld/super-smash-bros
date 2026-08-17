@@ -213,10 +213,24 @@ export function createRainbowHat(scene: Scene, parent: TransformNode, particleSc
   return { node, update };
 }
 
+/**
+ * Original platform-fighter archetypes — one per roster slot, giving the
+ * character-select-screen energy of a mascot brawler without copying any
+ * existing game's characters. Each kit adds signature headgear + a prop.
+ */
+export const FIGHTER_KITS = [
+  "knight", "ninja", "wizard", "robot", "viking", "boxer",
+  "archer", "pirate", "luchador", "samurai", "scientist", "hero",
+] as const;
+export type FighterKit = (typeof FIGHTER_KITS)[number];
+
+/** Kits that cover the head (procedural hair is skipped for these). */
+const KIT_HEADGEAR = new Set<FighterKit>(["knight", "ninja", "wizard", "viking", "archer", "pirate", "luchador", "samurai", "scientist"]);
+
 export function createCharacter(
   scene: Scene,
   cfg: CharacterConfig,
-  opts: { withHat?: boolean; particleScale?: number } = {},
+  opts: { withHat?: boolean; particleScale?: number; kit?: FighterKit } = {},
 ): CharacterRig {
   const body = BODIES.find((b) => b.id === cfg.bodyId) ?? BODIES[0]!;
   const color = COLORS.find((c) => c.id === cfg.colorId) ?? COLORS[0]!;
@@ -322,7 +336,7 @@ export function createCharacter(
         break; // bald = aerodynamic
     }
   };
-  buildHair();
+  if (!opts.kit || !KIT_HEADGEAR.has(opts.kit)) buildHair();
 
   // Limbs
   const mkLimb = (name: string, len: number, dia: number, material: StandardMaterial): { pivot: TransformNode; mesh: Mesh } => {
@@ -405,6 +419,211 @@ export function createCharacter(
     default:
       break;
   }
+
+  // ---------------- fighter archetype kit ----------------
+  if (opts.kit) {
+    const hs = body.headScale;
+    const hy = 0.42 * hs;
+    const back = -0.3 * body.width * body.bellyScale;
+    switch (opts.kit) {
+      case "knight": {
+        const helm = MeshBuilder.CreateSphere("helm", { diameter: 0.66 * hs, slice: 0.62 }, scene);
+        helm.material = mat(scene, "helmM", "#aeb6c2", 0.1);
+        helm.parent = headScaleNode;
+        helm.position.y = hy - 0.06;
+        const plume = MeshBuilder.CreateCylinder("plume", { diameterTop: 0.02, diameterBottom: 0.1 * hs, height: 0.3 * hs }, scene);
+        plume.material = mat(scene, "plumeM", color.primary, 0.2);
+        plume.parent = headScaleNode;
+        plume.position.y = hy + 0.2 * hs;
+        plume.rotation.x = -0.3;
+        const sword = MeshBuilder.CreateBox("sword", { width: 0.08, height: 0.85, depth: 0.03 }, scene);
+        sword.material = mat(scene, "swordM", "#d7dde6", 0.25);
+        sword.parent = visual;
+        sword.position.set(0.2, 1.15, back - 0.05);
+        sword.rotation.z = 0.5;
+        break;
+      }
+      case "ninja": {
+        const maskBand = MeshBuilder.CreateCylinder("mask", { diameter: 0.63 * hs, height: 0.16 * hs }, scene);
+        maskBand.material = mat(scene, "ninjaM", "#23263a");
+        maskBand.parent = headScaleNode;
+        maskBand.position.y = 0.33 * hs;
+        for (let i = 0; i < 2; i++) {
+          const tail = MeshBuilder.CreatePlane(`bandTail${i}`, { width: 0.09, height: 0.4 }, scene);
+          const tm = mat(scene, "bandTailM", color.primary, 0.15);
+          tm.backFaceCulling = false;
+          tail.material = tm;
+          tail.parent = headScaleNode;
+          tail.position.set(0.08 - i * 0.16, 0.28 * hs, -0.3 * hs);
+          tail.rotation.x = 0.5 + i * 0.25;
+        }
+        const katana = MeshBuilder.CreateBox("katana", { width: 0.05, height: 0.8, depth: 0.02 }, scene);
+        katana.material = mat(scene, "katanaM", "#c8cfd9", 0.2);
+        katana.parent = visual;
+        katana.position.set(-0.2, 1.15, back - 0.05);
+        katana.rotation.z = -0.6;
+        break;
+      }
+      case "wizard": {
+        const hat = MeshBuilder.CreateCylinder("wizHat", { diameterTop: 0, diameterBottom: 0.55 * hs, height: 0.6 * hs }, scene);
+        hat.material = mat(scene, "wizHatM", color.secondary, 0.15);
+        hat.parent = headScaleNode;
+        hat.position.y = hy + 0.2 * hs;
+        hat.rotation.z = 0.15;
+        const brim = MeshBuilder.CreateCylinder("wizBrim", { diameter: 0.7 * hs, height: 0.04 }, scene);
+        brim.material = hat.material;
+        brim.parent = headScaleNode;
+        brim.position.y = hy - 0.02;
+        const orb = MeshBuilder.CreateSphere("orb", { diameter: 0.14 }, scene);
+        orb.material = mat(scene, "orbM", "#57e6ff", 0.9);
+        orb.parent = visual;
+        orb.position.set(-0.5 * body.width, 0.9, 0.15);
+        break;
+      }
+      case "robot": {
+        const antenna = MeshBuilder.CreateCylinder("ant", { diameter: 0.03, height: 0.3 * hs }, scene);
+        antenna.material = mat(scene, "antM", "#8d939e");
+        antenna.parent = headScaleNode;
+        antenna.position.y = hy + 0.15 * hs;
+        const bulb = MeshBuilder.CreateSphere("bulb", { diameter: 0.09 }, scene);
+        bulb.material = mat(scene, "bulbM", "#ff4c4c", 0.9);
+        bulb.parent = headScaleNode;
+        bulb.position.y = hy + 0.32 * hs;
+        const visor = MeshBuilder.CreateBox("roboVisor", { width: 0.5 * hs, height: 0.1 * hs, depth: 0.04 }, scene);
+        visor.material = mat(scene, "roboVisorM", "#57e6ff", 0.7);
+        visor.parent = headScaleNode;
+        visor.position.set(0, 0.3 * hs, 0.28 * hs);
+        const chest = MeshBuilder.CreateBox("chestPanel", { width: 0.3, height: 0.24, depth: 0.05 }, scene);
+        chest.material = mat(scene, "chestM", "#8d939e", 0.1);
+        chest.parent = visual;
+        chest.position.set(0, 0.8, -back);
+        break;
+      }
+      case "viking": {
+        const helm = MeshBuilder.CreateSphere("vhelm", { diameter: 0.62 * hs, slice: 0.55 }, scene);
+        helm.material = mat(scene, "vhelmM", "#7a6a52", 0.1);
+        helm.parent = headScaleNode;
+        helm.position.y = hy - 0.03;
+        for (const side of [-1, 1]) {
+          const horn = MeshBuilder.CreateCylinder("horn", { diameterTop: 0, diameterBottom: 0.1 * hs, height: 0.3 * hs }, scene);
+          horn.material = mat(scene, "hornM", "#f2ead8");
+          horn.parent = headScaleNode;
+          horn.position.set(side * 0.3 * hs, hy + 0.08 * hs, 0);
+          horn.rotation.z = -side * 0.7;
+        }
+        const shield = MeshBuilder.CreateCylinder("shield", { diameter: 0.5, height: 0.05 }, scene);
+        shield.material = mat(scene, "shieldM", color.primary, 0.1);
+        shield.parent = visual;
+        shield.rotation.x = Math.PI / 2 - 0.2;
+        shield.position.set(0, 1.0, back - 0.08);
+        break;
+      }
+      case "boxer": {
+        for (const [leg] of [[armL], [armR]] as const) {
+          const glove = MeshBuilder.CreateSphere("glove", { diameter: 0.26 }, scene);
+          glove.material = mat(scene, "gloveM", "#e23d3d", 0.1);
+          glove.parent = leg.pivot;
+          glove.position.y = -armLen - 0.05;
+        }
+        const belt = MeshBuilder.CreateCylinder("belt", { diameter: 0.75 * body.width, height: 0.12 }, scene);
+        belt.material = mat(scene, "beltM", "#ffd23f", 0.4);
+        belt.parent = visual;
+        belt.position.y = 0.5;
+        break;
+      }
+      case "archer": {
+        const hood = MeshBuilder.CreateSphere("hood", { diameter: 0.68 * hs, slice: 0.6 }, scene);
+        hood.material = mat(scene, "hoodM", "#3e5c3a");
+        hood.parent = headScaleNode;
+        hood.position.y = hy - 0.08;
+        const quiver = MeshBuilder.CreateCylinder("quiver", { diameter: 0.14, height: 0.5 }, scene);
+        quiver.material = mat(scene, "quiverM", "#6b4a2b");
+        quiver.parent = visual;
+        quiver.position.set(0.15, 1.1, back - 0.05);
+        quiver.rotation.z = 0.4;
+        for (let i = 0; i < 3; i++) {
+          const fl = MeshBuilder.CreateBox(`fletch${i}`, { width: 0.06, height: 0.1, depth: 0.02 }, scene);
+          fl.material = mat(scene, "fletchM", color.primary, 0.2);
+          fl.parent = quiver;
+          fl.position.set((i - 1) * 0.05, 0.3, 0);
+        }
+        break;
+      }
+      case "pirate": {
+        const tricorn = MeshBuilder.CreateCylinder("tricorn", { diameterTop: 0.2 * hs, diameterBottom: 0.72 * hs, height: 0.22 * hs, tessellation: 3 }, scene);
+        tricorn.material = mat(scene, "tricornM", "#2b2320");
+        tricorn.parent = headScaleNode;
+        tricorn.position.y = hy + 0.02;
+        tricorn.rotation.y = Math.PI;
+        const patch = MeshBuilder.CreateBox("patch", { width: 0.14 * hs, height: 0.12 * hs, depth: 0.02 }, scene);
+        patch.material = mat(scene, "patchM", "#15181f");
+        patch.parent = headScaleNode;
+        patch.position.set(0.12 * hs, 0.24 * hs, 0.3 * hs);
+        break;
+      }
+      case "luchador": {
+        const maskTop = MeshBuilder.CreateSphere("lmask", { diameter: 0.64 * hs, slice: 0.68 }, scene);
+        maskTop.material = mat(scene, "lmaskM", color.primary, 0.15);
+        maskTop.parent = headScaleNode;
+        maskTop.position.y = hy - 0.12;
+        const emblem = MeshBuilder.CreateCylinder("emblem", { diameter: 0.16 * hs, height: 0.02, tessellation: 4 }, scene);
+        emblem.material = mat(scene, "emblemM", "#ffd23f", 0.5);
+        emblem.parent = headScaleNode;
+        emblem.rotation.x = Math.PI / 2;
+        emblem.position.set(0, 0.44 * hs, 0.24 * hs);
+        break;
+      }
+      case "samurai": {
+        const knot = MeshBuilder.CreateSphere("topknot", { diameter: 0.16 * hs }, scene);
+        knot.material = mat(scene, "knotM", "#2b1d0e");
+        knot.parent = headScaleNode;
+        knot.position.y = hy + 0.12 * hs;
+        for (const side of [-1, 1]) {
+          const pad = MeshBuilder.CreateBox("pad", { width: 0.22, height: 0.1, depth: 0.3 }, scene);
+          pad.material = mat(scene, "padKitM", color.secondary, 0.1);
+          pad.parent = visual;
+          pad.position.set(side * 0.45 * body.width, 1.08, 0);
+          pad.rotation.z = -side * 0.3;
+        }
+        break;
+      }
+      case "scientist": {
+        for (let i = 0; i < 6; i++) {
+          const tuft = MeshBuilder.CreateSphere(`wtuft${i}`, { diameter: 0.17 * hs }, scene);
+          tuft.material = mat(scene, "wtuftM", "#e8e8e8");
+          tuft.parent = headScaleNode;
+          const a = (i / 6) * Math.PI * 2;
+          tuft.position.set(Math.sin(a) * 0.24 * hs, hy + Math.cos(i * 2) * 0.06, Math.cos(a) * 0.2 * hs);
+        }
+        const goggles = MeshBuilder.CreateTorus("goggles", { diameter: 0.5 * hs, thickness: 0.05 * hs }, scene);
+        goggles.material = mat(scene, "gogM", "#e8b23a", 0.3);
+        goggles.parent = headScaleNode;
+        goggles.position.y = hy - 0.02;
+        goggles.rotation.x = 0.35;
+        break;
+      }
+      case "hero": {
+        const eyeMask = MeshBuilder.CreateBox("heroMask", { width: 0.5 * hs, height: 0.11 * hs, depth: 0.05 }, scene);
+        eyeMask.material = mat(scene, "heroMaskM", color.secondary, 0.2);
+        eyeMask.parent = headScaleNode;
+        eyeMask.position.set(0, 0.28 * hs, 0.29 * hs);
+        const cape = MeshBuilder.CreatePlane("heroCape", { width: 0.72 * body.width, height: 0.9 }, scene);
+        const cm = mat(scene, "heroCapeM", color.primary, 0.1);
+        cm.backFaceCulling = false;
+        cape.material = cm;
+        cape.parent = visual;
+        cape.position.set(0, 1.08, back - 0.02);
+        cape.rotation.x = -0.22;
+        const crest = MeshBuilder.CreateCylinder("crest", { diameter: 0.18, height: 0.02, tessellation: 5 }, scene);
+        crest.material = mat(scene, "crestM", "#ffd23f", 0.6);
+        crest.parent = visual;
+        crest.rotation.x = Math.PI / 2;
+        crest.position.set(0, 0.88, -back + 0.02);
+        break;
+      }
+    }
+  }
+
 
   // Nameplate + HP bar (single DynamicTexture billboard)
   const plateTex = new DynamicTexture("plate", { width: 512, height: 128 }, scene, false);

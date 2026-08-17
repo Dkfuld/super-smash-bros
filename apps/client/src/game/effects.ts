@@ -75,8 +75,11 @@ export class EffectsManager {
     });
   }
 
+  /** Elimination blast: the fighter pops in a big multi-ring burst. */
   ko(pos: Vector3): void {
-    this.burst(pos, { count: 40, c1: new Color4(1, 0.5, 0.1, 1), c2: new Color4(1, 0.1, 0.3, 1), speed: 9, size: 0.35, life: 0.7, up: true });
+    this.burst(pos, { count: 46, c1: new Color4(1, 0.85, 0.2, 1), c2: new Color4(1, 0.25, 0.15, 1), speed: 11, size: 0.42, life: 0.7, up: true });
+    this.burst(pos, { count: 24, c1: new Color4(1, 1, 1, 1), c2: new Color4(0.6, 0.85, 1, 1), speed: 6, size: 0.3, life: 0.45 });
+    this.burst(pos, { count: 16, c1: new Color4(1, 0.5, 0.9, 1), c2: new Color4(0.7, 0.4, 1, 1), speed: 14, size: 0.25, life: 0.9, gravity: -3, up: true });
   }
 
   explosion(pos: Vector3, kind: string): void {
