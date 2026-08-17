@@ -58,6 +58,7 @@ input, select, textarea { font: inherit; }
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  justify-content: safe center; /* never clip the top when content overflows */
   gap: 1rem;
   background: radial-gradient(ellipse at 50% -20%, #35206e 0%, var(--bg) 60%);
   overflow-y: auto;
@@ -170,6 +171,7 @@ input, select, textarea { font: inherit; }
 .hud { position: absolute; inset: 0; pointer-events: none; z-index: 10; }
 .hud > * { pointer-events: none; }
 
+.hud.spectator .hud-top { top: max(3.1rem, calc(env(safe-area-inset-top) + 2.7rem)); }
 .hud-top {
   position: absolute;
   top: max(0.5rem, env(safe-area-inset-top));

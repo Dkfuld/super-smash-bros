@@ -681,7 +681,7 @@ export class GameWorld {
             const dist = Math.min(10, 5 + (mate ? md * 0.5 : 2));
             const flat = new Vector3(fpos.x, 0, fpos.z);
             const outward = flat.length() > 2 ? flat.normalize() : new Vector3(Math.sin(this.t * 0.1), 0, Math.cos(this.t * 0.1));
-            camPos = mid.subtract(outward.scale(dist * 0.9)).add(new Vector3(0, 2.6 + dist * 0.35, 0));
+            camPos = mid.subtract(outward.scale(dist * 0.9)).add(new Vector3(0, 3.6 + dist * 0.42, 0));
           } else if (f) {
             // Your fighter is out — drift up while the director takes over framing.
             target = new Vector3(0, 1, 0);

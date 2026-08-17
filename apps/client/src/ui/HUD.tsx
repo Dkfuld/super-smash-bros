@@ -96,7 +96,7 @@ export function HUD({ world, isPlayer }: { world: GameWorld; isPlayer: boolean }
   const secs = hud ? Math.floor(hud.matchTimeSec % 60) : 0;
 
   return (
-    <div className="hud">
+    <div className={`hud ${isPlayer ? "" : "spectator"}`}>
       {hud && (
         <div className="hud-top">
           <span className="alive">👥 {hud.aliveCount}</span>
