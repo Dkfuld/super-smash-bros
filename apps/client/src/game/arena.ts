@@ -56,44 +56,137 @@ export function buildArena(scene: Scene, layout: ArenaLayout, q: QualityParams):
   const shadowCasters: Mesh[] = [];
   const staticMeshes: Mesh[] = [];
 
-  // ---------- floor with painted zones ----------
+  // ---------- floor: pro football field under the party dome ----------
+  // Field runs east-west: goal lines at x=±24, end lines at x=±30,
+  // sidelines at z=±18. Purely painted — collision layout is untouched.
   const floorTex = new DynamicTexture("floor", { width: 1024, height: 1024 }, scene, true);
   {
     const ctx = floorTex.getContext() as unknown as CanvasRenderingContext2D;
     const toPx = (x: number, z: number): [number, number] => [((x + 32) / 64) * 1024, ((32 - z) / 64) * 1024];
-    // hardwood court base
-    const grad = ctx.createLinearGradient(0, 0, 1024, 1024);
-    grad.addColorStop(0, "#c89a5f");
-    grad.addColorStop(1, "#b0824a");
-    ctx.fillStyle = grad;
+    // stadium apron outside the field
+    ctx.fillStyle = "#20351b";
     ctx.fillRect(0, 0, 1024, 1024);
-    // planks
-    ctx.strokeStyle = "rgba(90,60,30,0.25)";
-    ctx.lineWidth = 2;
-    for (let i = 0; i < 40; i++) {
+    const [exW, syN] = toPx(-30, 18);
+    const [exE, syS] = toPx(30, -18);
+    const [gW] = toPx(-24, 0);
+    const [gE] = toPx(24, 0);
+    // mowing stripes between the goal lines
+    const stripe = (gE - gW) / 10;
+    for (let i = 0; i < 10; i++) {
+      ctx.fillStyle = i % 2 ? "#3a7a2e" : "#448a36";
+      ctx.fillRect(gW + stripe * i, syN, stripe + 1, syS - syN);
+    }
+    // end zones in dome purple
+    ctx.fillStyle = "#33196b";
+    ctx.fillRect(exW, syN, gW - exW, syS - syN);
+    ctx.fillRect(gE, syN, exE - gE, syS - syN);
+    // turf noise
+    for (let i = 0; i < 900; i++) {
+      const x = exW + Math.random() * (exE - exW), y = syN + Math.random() * (syS - syN);
+      ctx.fillStyle = Math.random() < 0.5 ? "rgba(15,35,12,0.20)" : "rgba(130,160,90,0.10)";
+      ctx.fillRect(x, y, 2, 2);
+    }
+    // yard lines every "5 yards"
+    ctx.strokeStyle = "rgba(255,255,255,0.85)";
+    ctx.lineWidth = 4;
+    for (let i = 1; i < 10; i++) {
+      const x = gW + stripe * i;
       ctx.beginPath();
-      ctx.moveTo(0, i * 26);
-      ctx.lineTo(1024, i * 26);
+      ctx.moveTo(x, syN);
+      ctx.lineTo(x, syS);
       ctx.stroke();
     }
-    // zone tints
-    const zones: Array<[string, number, number, number]> = [
-      ["rgba(64,110,220,0.20)", 0, 21, 200],   // stage
-      ["rgba(220,120,40,0.18)", 22, 0, 190],   // bar
-      ["rgba(120,200,90,0.16)", 0, -21, 200],  // war room
-      ["rgba(180,80,200,0.16)", -22, 0, 190],  // lockers
-      ["rgba(240,80,120,0.2)", 22, 21, 150],   // game show
-    ];
-    for (const [color, zx, zz, r] of zones) {
-      const [px, pz] = toPx(zx, zz);
-      const g = ctx.createRadialGradient(px, pz, 10, px, pz, r);
-      g.addColorStop(0, color);
-      g.addColorStop(1, "rgba(0,0,0,0)");
-      ctx.fillStyle = g;
-      ctx.fillRect(0, 0, 1024, 1024);
+    // hash marks
+    ctx.lineWidth = 2;
+    for (const hz of [-5.5, 5.5]) {
+      const hy = toPx(0, hz)[1];
+      for (let x = gW + 15; x < gE; x += 15) {
+        ctx.beginPath();
+        ctx.moveTo(x, hy - 5);
+        ctx.lineTo(x, hy + 5);
+        ctx.stroke();
+      }
     }
-    // subtle wear: scuff marks so the court doesn't read as flat plastic
-    ctx.strokeStyle = "rgba(40,25,12,0.12)";
+    // yard numbers (flipped on the far side, like a broadcast field)
+    ctx.fillStyle = "rgba(255,255,255,0.88)";
+    ctx.font = "bold 38px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ["10", "20", "30", "40", "50", "40", "30", "20", "10"].forEach((n, i) => {
+      const x = gW + stripe * (i + 1);
+      for (const [zz, rot] of [[-13, 0], [13, Math.PI]] as const) {
+        const y = toPx(0, zz)[1];
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(rot);
+        ctx.fillText(n, 0, 0);
+        ctx.restore();
+      }
+    });
+    // goal lines + boundary
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 8;
+    ctx.strokeRect(exW, syN, exE - exW, syS - syN);
+    for (const gx of [gW, gE]) {
+      ctx.beginPath();
+      ctx.moveTo(gx, syN);
+      ctx.lineTo(gx, syS);
+      ctx.stroke();
+    }
+    // end zone wordmarks, rotated to run along each end zone
+    ctx.fillStyle = "#ffd23f";
+    ctx.font = "bold 72px system-ui, sans-serif";
+    ctx.save();
+    ctx.translate(toPx(-27, 0)[0], 512);
+    ctx.rotate(Math.PI / 2);
+    ctx.fillText("SMASH", 0, 0);
+    ctx.restore();
+    ctx.save();
+    ctx.translate(toPx(27, 0)[0], 512);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText("DOME", 0, 0);
+    ctx.restore();
+    // sideline paint on the aprons
+    ctx.fillStyle = "rgba(255,210,63,0.55)";
+    ctx.font = "bold 34px system-ui, sans-serif";
+    ctx.fillText("DRAFT NIGHT LIVE", 512, toPx(0, -20.5)[1]);
+    ctx.save();
+    ctx.translate(512, toPx(0, 20.5)[1]);
+    ctx.rotate(Math.PI);
+    ctx.fillText("WELCOME TO THE DOME", 0, 0);
+    ctx.restore();
+    // midfield crest: gold ring + football
+    ctx.beginPath();
+    ctx.arc(512, 512, 92, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(30,18,60,0.92)";
+    ctx.fill();
+    ctx.lineWidth = 6;
+    ctx.strokeStyle = "#ffd23f";
+    ctx.stroke();
+    ctx.save();
+    ctx.translate(512, 498);
+    ctx.fillStyle = "#8a4b23";
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 52, 30, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#f4ead8";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(-20, 0);
+    ctx.lineTo(20, 0);
+    ctx.stroke();
+    for (let i = -12; i <= 12; i += 8) {
+      ctx.beginPath();
+      ctx.moveTo(i, -5);
+      ctx.lineTo(i, 5);
+      ctx.stroke();
+    }
+    ctx.restore();
+    ctx.fillStyle = "#ffd23f";
+    ctx.font = "bold 26px system-ui, sans-serif";
+    ctx.fillText("SMASH DOME", 512, 560);
+    // cleat scuffs and big-play skid marks
+    ctx.strokeStyle = "rgba(12,28,10,0.28)";
     ctx.lineWidth = 3;
     for (let i = 0; i < 70; i++) {
       const sx = Math.random() * 1024, sy = Math.random() * 1024;
@@ -108,30 +201,11 @@ export function buildArena(scene: Scene, layout: ArenaLayout, q: QualityParams):
     vg.addColorStop(1, "rgba(12,6,28,0.6)");
     ctx.fillStyle = vg;
     ctx.fillRect(0, 0, 1024, 1024);
-    // court lines
-    ctx.strokeStyle = "rgba(255,255,255,0.65)";
-    ctx.lineWidth = 6;
-    ctx.beginPath();
-    ctx.arc(512, 512, 130, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(512, 512, 440, 0, Math.PI * 2);
-    ctx.stroke();
-    // center logo
-    ctx.fillStyle = "rgba(30,18,60,0.85)";
-    ctx.beginPath();
-    ctx.arc(512, 512, 95, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "#ffd23f";
-    ctx.font = "bold 44px system-ui, sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText("SMASH", 512, 500);
-    ctx.fillText("DOME", 512, 548);
     floorTex.update();
   }
   const floorMat = new StandardMaterial("floorMat", scene);
   floorMat.diffuseTexture = floorTex;
-  floorMat.specularColor = new Color3(0.12, 0.1, 0.08);
+  floorMat.specularColor = new Color3(0.05, 0.07, 0.04); // turf, not gym varnish
   const floor = MeshBuilder.CreateGround("floor", { width: 64, height: 64 }, scene);
   floor.material = floorMat;
   floor.receiveShadows = true;
@@ -160,6 +234,21 @@ export function buildArena(scene: Scene, layout: ArenaLayout, q: QualityParams):
     if (q.crowdDetail) {
       ctx.fillStyle = "#ffe9a3";
       for (let i = 0; i < 60; i++) ctx.fillRect(Math.random() * 1024, 40 + Math.random() * 160, 3, 3);
+      // D-FENSE letter cards held up in the stands
+      ctx.font = "bold 20px system-ui, sans-serif";
+      ctx.textAlign = "center";
+      for (let s = 0; s < 3; s++) {
+        const baseX = 40 + Math.random() * 780;
+        "DEFENSE".split("").forEach((ch, i) => {
+          ctx.fillStyle = "#f4f4ef";
+          ctx.fillRect(baseX + i * 26 - 10, 92, 21, 27);
+          ctx.fillStyle = "#b3122e";
+          ctx.fillText(ch, baseX + i * 26, 112);
+        });
+      }
+      // gold rally towels
+      ctx.fillStyle = "#ffd23f";
+      for (let i = 0; i < 40; i++) ctx.fillRect(Math.random() * 1024, 60 + Math.random() * 150, 8, 4);
     }
     crowdTex.update();
   }
@@ -213,6 +302,122 @@ export function buildArena(scene: Scene, layout: ArenaLayout, q: QualityParams):
   sky.isPickable = false;
   sky.parent = root;
   sky.freezeWorldMatrix();
+
+  // ---------- goal posts on both end lines ----------
+  const postMat = mat(scene, "goalPostMat", "#ffe14a", { emissive: 0.35 });
+  const postPadMat = mat(scene, "goalPadMat", "#2c62d4");
+  for (const sx of [-1, 1]) {
+    const gp = new TransformNode("goalPost", scene);
+    gp.parent = root;
+    gp.position.set(sx * 30.5, 0, 0);
+    const pad = MeshBuilder.CreateCylinder("gpPad", { diameter: 0.95, height: 1.7 }, scene);
+    pad.material = postPadMat;
+    pad.position.y = 0.85;
+    pad.parent = gp;
+    const pole = MeshBuilder.CreateCylinder("gpPole", { diameter: 0.4, height: 2.8 }, scene);
+    pole.material = postMat;
+    pole.position.y = 2.6;
+    pole.parent = gp;
+    const cross = MeshBuilder.CreateCylinder("gpCross", { diameter: 0.28, height: 6.8 }, scene);
+    cross.material = postMat;
+    cross.rotation.x = Math.PI / 2;
+    cross.position.y = 4.0;
+    cross.parent = gp;
+    for (const sz of [-1, 1]) {
+      const up = MeshBuilder.CreateCylinder("gpUpright", { diameter: 0.24, height: 5.6 }, scene);
+      up.material = postMat;
+      up.position.set(0, 6.8, sz * 3.3);
+      up.parent = gp;
+    }
+    for (const m of gp.getChildMeshes(false)) {
+      shadowCasters.push(m as Mesh);
+      staticMeshes.push(m as Mesh);
+    }
+  }
+
+  // ---------- end zone pylons ----------
+  const pylonMat = mat(scene, "pylonMat", "#ff7a1a", { emissive: 0.45 });
+  for (const px of [-30, -24, 24, 30]) {
+    for (const pz of [-18, 18]) {
+      const py = MeshBuilder.CreateBox("pylon", { width: 0.26, depth: 0.26, height: 0.5 }, scene);
+      py.material = pylonMat;
+      py.position.set(px, 0.25, pz);
+      py.parent = root;
+      staticMeshes.push(py);
+    }
+  }
+
+  // ---------- chain gang + down marker on the north sideline ----------
+  const chainMat = mat(scene, "chainStickMat", "#ff7a1a", { emissive: 0.3 });
+  for (const cx of [-15, -11]) {
+    const stick = MeshBuilder.CreateCylinder("chainPole", { diameter: 0.09, height: 2.3 }, scene);
+    stick.material = chainMat;
+    stick.position.set(cx, 1.15, 19.6);
+    stick.parent = root;
+    const top = MeshBuilder.CreateCylinder("chainTop", { diameter: 0.5, height: 0.12 }, scene);
+    top.material = chainMat;
+    top.rotation.x = Math.PI / 2;
+    top.position.set(cx, 2.4, 19.6);
+    top.parent = root;
+  }
+  {
+    const dmPole = MeshBuilder.CreateCylinder("downPole", { diameter: 0.09, height: 2.5 }, scene);
+    dmPole.material = chainMat;
+    dmPole.position.set(-13, 1.25, 19.6);
+    dmPole.parent = root;
+    const dmTex = textTexture(scene, "4TH\n& ∞", { w: 128, h: 128, bg: "#0c0620", fg: "#ff7a1a", font: "bold 40px system-ui, sans-serif" });
+    const dmMat = new StandardMaterial("downMarkerMat", scene);
+    dmMat.emissiveTexture = dmTex;
+    dmMat.diffuseColor = Color3.Black();
+    dmMat.disableLighting = true;
+    dmMat.backFaceCulling = false;
+    const sign = MeshBuilder.CreatePlane("downSign", { width: 0.7, height: 0.7 }, scene);
+    sign.material = dmMat;
+    sign.position.set(-13, 2.7, 19.6);
+    sign.parent = root;
+  }
+
+  // ---------- league blimp circling the rafters ----------
+  {
+    const blimpRoot = new TransformNode("blimp", scene);
+    blimpRoot.parent = root;
+    blimpRoot.position.set(23, 12.2, 0);
+    const body = MeshBuilder.CreateSphere("blimpBody", { diameterX: 5.2, diameterY: 1.7, diameterZ: 1.7 }, scene);
+    body.material = mat(scene, "blimpMat", "#d7dde8", { emissive: 0.18 });
+    body.parent = blimpRoot;
+    const gondola = MeshBuilder.CreateBox("blimpGondola", { width: 1.1, height: 0.42, depth: 0.5 }, scene);
+    gondola.material = mat(scene, "gondolaMat", "#3a2a6e");
+    gondola.position.y = -0.95;
+    gondola.parent = blimpRoot;
+    const finMat = mat(scene, "blimpFinMat", "#8f1f4b");
+    const finV = MeshBuilder.CreateBox("blimpFinV", { width: 0.9, height: 1.5, depth: 0.07 }, scene);
+    finV.material = finMat;
+    finV.position.set(-2.2, 0, 0);
+    finV.parent = blimpRoot;
+    const finH = MeshBuilder.CreateBox("blimpFinH", { width: 0.9, height: 0.07, depth: 1.5 }, scene);
+    finH.material = finMat;
+    finH.position.set(-2.2, 0, 0);
+    finH.parent = blimpRoot;
+    const adTex = textTexture(scene, "SMASH AIR", { w: 512, h: 128, bg: "#d7dde8", fg: "#3a2a6e" });
+    for (const s of [-1, 1]) {
+      const adMat = new StandardMaterial("blimpAdMat", scene);
+      adMat.emissiveTexture = adTex;
+      adMat.diffuseColor = Color3.Black();
+      adMat.disableLighting = true;
+      const ad = MeshBuilder.CreatePlane("blimpAd", { width: 2.7, height: 0.68 }, scene);
+      ad.material = adMat;
+      ad.position.set(0.2, 0.05, s * 0.88);
+      ad.rotation.y = s > 0 ? 0 : Math.PI;
+      ad.parent = blimpRoot;
+    }
+    if (q.animatedProps) {
+      animated.push((dt, tt) => {
+        const a = tt * 0.07;
+        blimpRoot.position.set(Math.cos(a) * 23, 12.2 + Math.sin(tt * 0.5) * 0.3, Math.sin(a) * 23);
+        blimpRoot.rotation.y = a + Math.PI / 2;
+      });
+    }
+  }
 
   // ---------- prop builders by kind ----------
   const wood = mat(scene, "wood", "#8a5a2e");
@@ -269,6 +474,34 @@ export function buildArena(scene: Scene, layout: ArenaLayout, q: QualityParams):
     mesh.material = tvMat;
     screenMats.push(tvMat);
     return { mesh, mat: tvMat };
+  };
+
+  // Football dressing helpers: team helmets and sideline cooler jugs.
+  const facemaskMat = mat(scene, "facemaskMat", "#e8e4da");
+  const makeHelmet = (color: string, x: number, y: number, z: number): void => {
+    const h = new TransformNode("helmet", scene);
+    h.parent = root;
+    h.position.set(x, y, z);
+    h.rotation.y = Math.random() * Math.PI * 2;
+    const shell = MeshBuilder.CreateSphere("helmetShell", { diameterX: 0.4, diameterY: 0.36, diameterZ: 0.44 }, scene);
+    shell.material = mat(scene, `helmetMat_${color}`, color, { emissive: 0.08 });
+    shell.position.y = 0.02;
+    shell.parent = h;
+    const mask = MeshBuilder.CreateTorus("facemask", { diameter: 0.3, thickness: 0.035, tessellation: 12 }, scene);
+    mask.material = facemaskMat;
+    mask.position.set(0, -0.06, 0.16);
+    mask.rotation.x = 0.5;
+    mask.parent = h;
+  };
+  const makeJug = (color: string, x: number, y: number, z: number): void => {
+    const jug = MeshBuilder.CreateCylinder("coolerJug", { diameter: 0.5, height: 0.62 }, scene);
+    jug.material = mat(scene, `jugBody_${color}`, color, { emissive: 0.12 });
+    jug.position.set(x, y + 0.31, z);
+    jug.parent = root;
+    const lid = MeshBuilder.CreateCylinder("coolerLid", { diameter: 0.34, height: 0.14 }, scene);
+    lid.material = plasticWhite;
+    lid.position.set(x, y + 0.68, z);
+    lid.parent = root;
   };
 
   for (const b of layout.boxes) {
@@ -457,19 +690,30 @@ export function buildArena(scene: Scene, layout: ArenaLayout, q: QualityParams):
         const ctx = wbTex.getContext() as unknown as CanvasRenderingContext2D;
         ctx.fillStyle = "#f4f4ef";
         ctx.fillRect(0, 0, 512, 256);
+        // hand-drawn play: X's vs O's with a trick-play scribble
+        ctx.fillStyle = "#2b3a8f";
+        ctx.font = "bold 30px system-ui";
+        ctx.fillText("THE MASTER PLAN", 30, 40);
+        ctx.font = "bold 28px system-ui";
+        for (let i = 0; i < 5; i++) ctx.fillText("O", 90 + i * 70, 190);
+        ctx.fillStyle = "#d43d3d";
+        for (let i = 0; i < 5; i++) ctx.fillText("X", 90 + i * 70, 110);
         ctx.strokeStyle = "#d43d3d";
-        ctx.lineWidth = 5;
+        ctx.lineWidth = 4;
         ctx.beginPath();
-        ctx.moveTo(40, 200);
-        ctx.lineTo(180, 60);
-        ctx.lineTo(300, 160);
-        ctx.lineTo(470, 40);
+        ctx.moveTo(240, 180);
+        ctx.quadraticCurveTo(300, 140, 250, 100);
+        ctx.quadraticCurveTo(200, 70, 440, 60);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(440, 60);
+        ctx.lineTo(424, 52);
+        ctx.moveTo(440, 60);
+        ctx.lineTo(430, 76);
         ctx.stroke();
         ctx.fillStyle = "#2b3a8f";
-        ctx.font = "bold 34px system-ui";
-        ctx.fillText("DO NOT DRAFT A KICKER", 30, 40);
-        ctx.font = "26px system-ui";
-        ctx.fillText("(seriously, Kevin)", 150, 230);
+        ctx.font = "24px system-ui";
+        ctx.fillText("no kickers (seriously, Kevin)", 110, 236);
         wbTex.update();
         const wbMat = new StandardMaterial("wbMat", scene);
         wbMat.diffuseTexture = wbTex;
@@ -532,9 +776,26 @@ export function buildArena(scene: Scene, layout: ArenaLayout, q: QualityParams):
         face.position.set(b.x + b.w / 2 + 0.02, b.h / 2, b.z);
         face.rotation.y = -Math.PI / 2;
         face.parent = root;
+        // spare helmets stored on top of the lockers
+        for (let i = 0; i < 4; i++) {
+          makeHelmet(["#d43d3d", "#2c62d4", "#ffd23f", "#4ed24e"][i] ?? "#d43d3d", b.x, b.h + 0.18, b.z - b.d / 2 + 2 + i * 4.5);
+        }
         break;
       }
-      case "bench": simpleBox(b, wood); break;
+      case "bench": {
+        simpleBox(b, wood);
+        // game-day bench: helmets resting on it, cooler jug at the end
+        const alongZ = b.d > b.w;
+        const half = (alongZ ? b.d : b.w) / 2;
+        const helmetColors = ["#d43d3d", "#2c62d4", "#ffd23f"];
+        for (let i = 0; i < 2; i++) {
+          const off = (i === 0 ? -1 : 1) * (half - 1);
+          makeHelmet(helmetColors[Math.floor(Math.random() * helmetColors.length)] ?? "#d43d3d", b.x + (alongZ ? 0 : off), b.h + 0.18, b.z + (alongZ ? off : 0));
+        }
+        if (alongZ) makeJug("#ff7a1a", b.x + 0.9, 0, b.z + half + 0.5);
+        else makeJug("#ff7a1a", b.x + half + 0.5, 0, b.z + 0.9);
+        break;
+      }
       case "laundryCart": {
         simpleBox(b, plasticWhite);
         for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
@@ -588,11 +849,24 @@ export function buildArena(scene: Scene, layout: ArenaLayout, q: QualityParams):
       }
       case "prizeDisplay": {
         simpleBox(b, stageMat);
-        const glowBox = MeshBuilder.CreateBox("prizeGlow", { width: b.w * 0.6, depth: b.d * 0.5, height: 0.7 }, scene);
-        glowBox.material = mat(scene, "prizeMat", "#ffd23f", { emissive: 0.8 });
-        glowBox.position.set(b.x, b.h + 0.35, b.z);
-        glowBox.parent = root;
-        if (q.animatedProps) animated.push((dt, t) => (glowBox.rotation.y = t * 0.8));
+        // the grand prize: a giant golden football on a pedestal
+        const trophy = new TransformNode("trophy", scene);
+        trophy.parent = root;
+        trophy.position.set(b.x, b.h, b.z);
+        const gold = mat(scene, "trophyGold", "#ffd23f", { emissive: 0.55 });
+        const ped = MeshBuilder.CreateCylinder("trophyPed", { diameterTop: 0.55, diameterBottom: 0.9, height: 0.45 }, scene);
+        ped.material = gold;
+        ped.position.y = 0.22;
+        ped.parent = trophy;
+        const stem = MeshBuilder.CreateCylinder("trophyStem", { diameter: 0.16, height: 0.5 }, scene);
+        stem.material = gold;
+        stem.position.y = 0.65;
+        stem.parent = trophy;
+        const ball = MeshBuilder.CreateSphere("trophyBall", { diameterX: 0.6, diameterY: 1.05, diameterZ: 0.6 }, scene);
+        ball.material = gold;
+        ball.position.y = 1.35;
+        ball.parent = trophy;
+        if (q.animatedProps) animated.push((dt, t) => (trophy.rotation.y = t * 0.8));
         break;
       }
       case "buzzer": {
@@ -651,6 +925,66 @@ export function buildArena(scene: Scene, layout: ArenaLayout, q: QualityParams):
     }
   }
 
+  // ---------- stadium videoboards over each end of the bowl ----------
+  const jumboLines = [
+    "BREAKING: KEVIN EYES KICKER IN RD 1",
+    "TRADE RUMOR: NOBODY TRUSTS THE COMMISH",
+    "WEATHER: 100% CHANCE OF VIOLENCE",
+    "INJURY REPORT: FEELINGS — QUESTIONABLE",
+    "VEGAS LINE: DOME FAVORED BY 12",
+    "TONIGHT: LAST PLACE PICKS LAST",
+  ];
+  for (const sz of [-1, 1]) {
+    const jTex = new DynamicTexture("jumboTex", { width: 512, height: 224 }, scene, false);
+    const jMat = new StandardMaterial("jumboMat", scene);
+    jMat.emissiveTexture = jTex;
+    jMat.diffuseColor = Color3.Black();
+    jMat.disableLighting = true;
+    let line = Math.floor(Math.random() * jumboLines.length);
+    const drawJumbo = (): void => {
+      const c = jTex.getContext() as unknown as CanvasRenderingContext2D;
+      c.fillStyle = "#0a0518";
+      c.fillRect(0, 0, 512, 224);
+      c.fillStyle = "#ffd23f";
+      c.font = "bold 46px system-ui, sans-serif";
+      c.textAlign = "center";
+      c.fillText("SMASH DOME", 256, 58);
+      c.fillStyle = "#ff4c6a";
+      c.fillRect(20, 84, 472, 4);
+      c.fillStyle = "#ffffff";
+      c.font = "bold 24px system-ui, sans-serif";
+      c.fillText(jumboLines[line % jumboLines.length] ?? "LIVE", 256, 136, 480);
+      c.fillStyle = "#ff2d2d";
+      c.fillRect(24, 176, 14, 14);
+      c.fillStyle = "#c9d4ff";
+      c.font = "bold 20px system-ui, sans-serif";
+      c.textAlign = "left";
+      c.fillText("LIVE — DRAFT NIGHT", 46, 189);
+      jTex.update();
+    };
+    drawJumbo();
+    if (q.animatedProps) {
+      let acc = 0;
+      animated.push((dt) => {
+        acc += dt;
+        if (acc > 3.2) {
+          acc = 0;
+          line++;
+          drawJumbo();
+        }
+      });
+    }
+    const frame = MeshBuilder.CreateBox("jumboFrame", { width: 11.6, height: 5.2, depth: 0.5 }, scene);
+    frame.material = metalDark;
+    frame.position.set(0, 10.2, sz * 36.5);
+    frame.parent = root;
+    const screen = MeshBuilder.CreatePlane("jumboScreen", { width: 11, height: 4.6 }, scene);
+    screen.material = jMat;
+    screen.position.set(0, 10.2, sz * 36.5 - sz * 0.32);
+    screen.rotation.y = sz > 0 ? Math.PI : 0;
+    screen.parent = root;
+  }
+
   // ---------- ceiling: trusses, fans, spotlights, banners ----------
   const trussMat = mat(scene, "truss", "#3c4250");
   for (const z of [-14, 0, 14]) {
@@ -696,9 +1030,9 @@ export function buildArena(scene: Scene, layout: ArenaLayout, q: QualityParams):
     if (q.animatedProps) animated.push((dt) => (bladeRoot.rotation.y += dt * 5));
   }
   // hanging banners
-  const bannerTexts = ["SMASH DOME", "DRAFT NIGHT LIVE", "12 ENTER · 1 PICKS FIRST", "NO REFUNDS"];
+  const bannerTexts = ["SMASH DOME", "DRAFT NIGHT LIVE", "4TH & FOREVER", "D-FENSE! D-FENSE!", "12 ENTER · 1 PICKS FIRST", "COMMISH IS CORRUPT"];
   bannerTexts.forEach((txt, i) => {
-    const tex = textTexture(scene, txt, { w: 512, h: 170, bg: ["#3a2a6e", "#8f1f4b", "#1d5c46", "#7a3b12"][i] ?? "#333", fg: "#ffe9a3" });
+    const tex = textTexture(scene, txt, { w: 512, h: 170, bg: ["#3a2a6e", "#8f1f4b", "#1d5c46", "#7a3b12", "#14406b", "#5c1030"][i] ?? "#333", fg: "#ffe9a3" });
     const bMat = new StandardMaterial(`banner${i}`, scene);
     bMat.diffuseTexture = tex;
     bMat.emissiveColor = new Color3(0.45, 0.45, 0.45);
