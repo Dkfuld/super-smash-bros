@@ -46,7 +46,7 @@ export function qualityParams(): QualityParams {
     case "high":
       return { tier, hardwareScaling: Math.max(1, (devicePixelRatio || 1) / 2), shadows: true, shadowMapSize: 1024, particleScale: 1, animatedProps: true, glow: true, crowdDetail: true, maxDebris: 40 };
     case "medium":
-      return { tier, hardwareScaling: Math.max(1.2, (devicePixelRatio || 1) / 1.6), shadows: true, shadowMapSize: 512, particleScale: 0.6, animatedProps: true, glow: false, crowdDetail: true, maxDebris: 20 };
+      return { tier, hardwareScaling: Math.max(1.2, (devicePixelRatio || 1) / 1.6), shadows: true, shadowMapSize: 512, particleScale: 0.6, animatedProps: true, glow: true, crowdDetail: true, maxDebris: 20 };
     default:
       return { tier: "low", hardwareScaling: Math.max(1.5, devicePixelRatio || 1), shadows: false, shadowMapSize: 0, particleScale: 0.35, animatedProps: false, glow: false, crowdDetail: false, maxDebris: 8 };
   }

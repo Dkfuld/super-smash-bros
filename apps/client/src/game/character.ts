@@ -250,8 +250,25 @@ const KIT_HEADGEAR = new Set<FighterKit>(["knight", "ninja", "wizard", "viking",
 export function createCharacter(
   scene: Scene,
   cfg: CharacterConfig,
-  opts: { withHat?: boolean; particleScale?: number; kit?: FighterKit } = {},
+  opts: { withHat?: boolean; particleScale?: number; kit?: FighterKit; outline?: boolean } = {},
 ): CharacterRig {
+  // Cartoon ink outlines — the cheapest trick that makes fighters read as
+  // "real game characters" instead of untextured geometry.
+  const OUTLINE = opts.outline !== false;
+  const OUTLINE_COLOR = new Color3(0.07, 0.04, 0.12);
+  const outlineAll = (root2: TransformNode): void => {
+    if (!OUTLINE) return;
+    for (const m of root2.getChildMeshes(false)) {
+      const mesh = m as Mesh;
+      // Flat billboards (face, nameplate, capes, ribbons) look wrong with rims.
+      if (mesh.name === "face" || mesh.name === "plate" || mesh.name.toLowerCase().includes("cape") || mesh.name.startsWith("ribbon") || mesh.name.startsWith("bandTail") || mesh.name === "wing") continue;
+      if (mesh.renderOutline !== undefined) {
+        mesh.renderOutline = true;
+        mesh.outlineWidth = 0.012;
+        mesh.outlineColor = OUTLINE_COLOR;
+      }
+    }
+  };
   const body = BODIES.find((b) => b.id === cfg.bodyId) ?? BODIES[0]!;
   const color = COLORS.find((c) => c.id === cfg.colorId) ?? COLORS[0]!;
   const skin = SKIN_TONES[(cfg.faceId.length * 7 + cfg.colorId.length * 3) % SKIN_TONES.length]!;
@@ -946,6 +963,8 @@ export function createCharacter(
       if (flashT <= 0) jerseyMat.emissiveColor = Color3.Black();
     }
   };
+
+  outlineAll(root);
 
   return {
     root,

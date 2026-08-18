@@ -92,6 +92,22 @@ export function buildArena(scene: Scene, layout: ArenaLayout, q: QualityParams):
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, 1024, 1024);
     }
+    // subtle wear: scuff marks so the court doesn't read as flat plastic
+    ctx.strokeStyle = "rgba(40,25,12,0.12)";
+    ctx.lineWidth = 3;
+    for (let i = 0; i < 70; i++) {
+      const sx = Math.random() * 1024, sy = Math.random() * 1024;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.quadraticCurveTo(sx + (Math.random() - 0.5) * 60, sy + (Math.random() - 0.5) * 60, sx + (Math.random() - 0.5) * 90, sy + (Math.random() - 0.5) * 90);
+      ctx.stroke();
+    }
+    // edge vignette: darken toward the dome wall so the floor has depth
+    const vg = ctx.createRadialGradient(512, 512, 330, 512, 512, 730);
+    vg.addColorStop(0, "rgba(0,0,0,0)");
+    vg.addColorStop(1, "rgba(12,6,28,0.6)");
+    ctx.fillStyle = vg;
+    ctx.fillRect(0, 0, 1024, 1024);
     // court lines
     ctx.strokeStyle = "rgba(255,255,255,0.65)";
     ctx.lineWidth = 6;
@@ -163,6 +179,40 @@ export function buildArena(scene: Scene, layout: ArenaLayout, q: QualityParams):
   ring.material = ringMat;
   ring.position.y = 13.5;
   ring.parent = root;
+
+  // ---------- night-sky dome backdrop ----------
+  // Wide shots used to fall off into flat clear-color; this puts a starfield
+  // and horizon glow behind everything instead.
+  const skyTex = new DynamicTexture("skyTex", { width: 512, height: 512 }, scene, true);
+  {
+    const ctx = skyTex.getContext() as unknown as CanvasRenderingContext2D;
+    const grad = ctx.createLinearGradient(0, 0, 0, 512);
+    grad.addColorStop(0, "#05020e");
+    grad.addColorStop(0.55, "#140a30");
+    grad.addColorStop(0.8, "#2c1257");
+    grad.addColorStop(1, "#4d1f6e");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 512, 512);
+    for (let i = 0; i < 240; i++) {
+      const y = Math.random() * 400;
+      const s = Math.random() < 0.12 ? 2.4 : 1.3;
+      ctx.fillStyle = `rgba(255,255,${Math.random() < 0.3 ? 210 : 255},${0.35 + Math.random() * 0.6})`;
+      ctx.fillRect(Math.random() * 512, y, s, s);
+    }
+    skyTex.update();
+  }
+  const skyMat = new StandardMaterial("skyMat", scene);
+  skyMat.emissiveTexture = skyTex;
+  skyMat.diffuseColor = Color3.Black();
+  skyMat.specularColor = Color3.Black();
+  skyMat.disableLighting = true;
+  skyMat.backFaceCulling = false;
+  const sky = MeshBuilder.CreateSphere("skyDome", { diameter: 150, segments: 12, sideOrientation: Mesh.BACKSIDE }, scene);
+  sky.material = skyMat;
+  sky.position.y = 0;
+  sky.isPickable = false;
+  sky.parent = root;
+  sky.freezeWorldMatrix();
 
   // ---------- prop builders by kind ----------
   const wood = mat(scene, "wood", "#8a5a2e");

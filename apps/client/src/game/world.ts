@@ -162,6 +162,7 @@ export class GameWorld {
         withHat: slot.id === hatPlayerId,
         particleScale: q.particleScale,
         kit: this.kitOverrides?.[slot.slotIndex] ?? FIGHTER_KITS[slot.slotIndex % FIGHTER_KITS.length],
+        outline: q.tier !== "low",
       });
       if (this.gs.shadows) for (const m of rig.meshes) this.gs.shadows.addShadowCaster(m);
       rig.setNameplate(slot.name, 1, slot.status === "ai");
@@ -649,6 +650,15 @@ export class GameWorld {
         target = new Vector3(0, 0, 0);
         camPos = new Vector3(0, 34, -20);
       }
+    } else if (phase === "lobby" || phase === "countdown") {
+      // Opening flyover: broadcast-style sweep down from the rafters into the
+      // arena while the fighters line up. Ends right as the horn sounds.
+      const p = Math.min(1, this.t / 7);
+      const e = 1 - (1 - p) * (1 - p); // ease-out
+      const a = -0.7 + this.t * 0.2;
+      const r = 33 - 13 * e;
+      target = new Vector3(0, 1 + (1 - e) * 3, 0);
+      camPos = new Vector3(Math.sin(a) * r, 19 - 8.5 * e, Math.cos(a) * r);
     } else {
       // Spectator modes
       switch (this.specCam) {
