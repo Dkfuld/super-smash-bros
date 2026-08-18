@@ -281,6 +281,22 @@ input, select, textarea { font: inherit; }
   pointer-events: auto;
 }
 
+/* ---------- best-of-3 series standings ---------- */
+.series-table { width: 100%; max-width: 36rem; padding: 0.5rem; }
+.series-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.2rem;
+  font-size: 0.8rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.series-row > span { width: 2rem; text-align: center; flex-shrink: 0; }
+.series-row > span:nth-child(2) { flex: 1; width: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.series-row.series-head { font-size: 0.6rem; font-weight: 900; letter-spacing: 0.08em; color: var(--text-dim); border-bottom-color: rgba(255, 255, 255, 0.18); }
+.series-row.first { background: rgba(255, 210, 63, 0.12); border-radius: 8px; }
+.series-pick { font-weight: 900; color: var(--gold); }
+
 .results-actions {
   position: fixed;
   bottom: max(0.6rem, env(safe-area-inset-bottom));
@@ -319,7 +335,7 @@ input, select, textarea { font: inherit; }
   font-size: clamp(1.4rem, 6vw, 2.4rem);
   font-weight: 900;
   color: #fff;
-  background: linear-gradient(90deg, #ff3b3b, #ff9f2e, #ffe83b, #43d94e, #3b8bff, #a04ef2);
+  background: linear-gradient(90deg, #1c4632, #2c6b47, #ffb612, #7a4b23); /* dunce-troll colors */
   padding: 0.4rem 1.2rem;
   border-radius: 999px;
   animation: yippeePop 1.6s ease forwards;

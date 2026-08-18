@@ -112,7 +112,7 @@ export function PlayerFlow({ roomCode }: { roomCode: string }): JSX.Element {
               }}
             >
               {s.name}
-              {s.isPreviousLoser ? " 🌈" : ""}
+              {s.isPreviousLoser ? " 🧌" : ""}
               <div style={{ fontSize: "0.7rem", color: "var(--text-dim)" }}>
                 {s.status === "empty" ? "available" : s.status === "ai" ? "AI substitute" : "taken"}
               </div>
@@ -189,11 +189,11 @@ function Onboarding({
     <div className="screen" style={{ justifyContent: "flex-start", paddingTop: "max(1rem, env(safe-area-inset-top))" }}>
       <SettingsPanel />
       <h1 className="title" style={{ fontSize: "1.5rem" }}>
-        You are {slotName} {isLoser && "🌈"}
+        You are {slotName} {isLoser && "🧌"}
       </h1>
       {isLoser && (
         <p className="subtitle" style={{ color: "var(--pink)" }}>
-          Last season's last place. The Rainbow Fan-Spin Hat awaits you. Yippee!
+          Last season's last place. The Dunce Beanie of Shame awaits you. Yippee!
         </p>
       )}
       <div className="onboard">

@@ -163,7 +163,8 @@ export class GameWorld {
       const rig = createCharacter(scene, slot.character, {
         withHat: slot.id === hatPlayerId,
         particleScale: q.particleScale,
-        kit: this.kitOverrides?.[slot.slotIndex] ?? FIGHTER_KITS[slot.slotIndex % FIGHTER_KITS.length],
+        // Last season's loser doesn't get a say: they are the Shame Troll.
+        kit: slot.id === hatPlayerId ? "troll" : this.kitOverrides?.[slot.slotIndex] ?? FIGHTER_KITS[slot.slotIndex % FIGHTER_KITS.length],
         outline: q.tier !== "low",
       });
       if (this.gs.shadows) for (const m of rig.meshes) this.gs.shadows.addShadowCaster(m);
@@ -203,18 +204,58 @@ export class GameWorld {
   }
 
   setSpectatorCam(cam: SpectatorCam, followId?: string): void {
+    // NOTE: deliberately does NOT touch focusId — shared TV spectators follow
+    // fighters without adopting them. Personal viewers adopt via setFocus.
     this.specCam = cam;
-    if (followId) {
-      this.specFollowId = followId;
-      // Following a fighter makes them "yours": personal banners and the big
-      // splat key off focusId, so keep it in sync with the roster picks.
-      this.focusId = followId;
-    }
+    if (followId) this.specFollowId = followId;
   }
 
   // ---------------- intro flyby ----------------
 
   private flyby: { start: number; dur: number } | null = null;
+  private entrance: { id: string; start: number; dur: number } | null = null;
+
+  /**
+   * Walk of shame: the loser's troll trudges out of the helmet tunnel while
+   * every other fighter turns to watch (and the announcer roasts them).
+   * Client-side only — the sim isn't ticking yet, so rigs are free to move;
+   * the first real snapshot snaps everyone to their true spawns.
+   */
+  startLoserEntrance(loserId: string, durationSec = 5): void {
+    const e = this.fighters.get(loserId);
+    if (!e) return;
+    this.entrance = { id: loserId, start: this.t, dur: durationSec };
+    e.rig.root.position.set(-22.2, 0, -22.2); // helmet tunnel mouth
+  }
+
+  private updateLoserEntrance(): void {
+    if (!this.entrance) return;
+    const p = (this.t - this.entrance.start) / this.entrance.dur;
+    const e = this.fighters.get(this.entrance.id);
+    if (!e || p >= 1) {
+      this.entrance = null;
+      return;
+    }
+    // Trudge from the tunnel toward midfield, slow and ashamed.
+    const from = { x: -22.2, z: -22.2 };
+    const to = { x: -11, z: -11 };
+    const x = from.x + (to.x - from.x) * p;
+    const z = from.z + (to.z - from.z) * p;
+    e.rig.root.position.set(x, 0, z);
+    e.rig.root.rotation.y = Math.atan2(to.x - from.x, to.z - from.z);
+    if (e.lastAnim !== "run") {
+      e.lastAnim = "run";
+      e.rig.setAnim("run");
+    }
+    e.rig.update(0.016, 0.3);
+    // The rest of the league turns to point and laugh (little mocking hops).
+    for (const [id, o] of this.fighters) {
+      if (id === this.entrance.id) continue;
+      const d = o.rig.root.position;
+      o.rig.root.rotation.y = Math.atan2(x - d.x, z - d.z);
+      o.rig.root.position.y = Math.abs(Math.sin(this.t * 6 + d.x)) * 0.14;
+    }
+  }
 
   /**
    * Scripted blimp pass for the intro: the SMASH AIR blimp crosses the middle
@@ -233,6 +274,10 @@ export class GameWorld {
     if (p >= 1) {
       this.flyby = null;
       this.arena.setBlimpBanner(null);
+      // Park it back on its idle orbit spot first — on the low quality tier
+      // there is no orbit animator to rescue a stranded blimp.
+      this.arena.blimp.position.set(23, 12.2, 0);
+      this.arena.blimp.rotation.y = Math.PI / 2;
       this.arena.setBlimpAuto(true);
       return;
     }
@@ -376,9 +421,9 @@ export class GameWorld {
           audio.play("elimination");
           audio.play("partyBoom");
           this.camShake = Math.max(this.camShake, shakeAmount(0.35));
-          // "Your" fighter is whichever one you play OR follow — the roster
-          // chips set specFollowId, the initial pick sets focusId; either way
-          // that death gets the full-screen blood treatment.
+          // Big splat when the fighter you play, adopted, or are actively
+          // following dies — the personal "YOU'RE OUT" banner stays keyed to
+          // adopted identity (focusId) only, so shared TVs never show it.
           const watchedId = this.myId ?? (this.specCam === "follow" ? this.specFollowId : null) ?? this.focusId;
           const isFocusDeath = ev.record.playerId === watchedId;
           this.notice({ kind: "splat", big: isFocusDeath });
@@ -389,7 +434,7 @@ export class GameWorld {
             this.killCamUntil = this.t + 2.3;
             this.directorCut = true;
           }
-          if (ev.record.playerId === watchedId && !this.myId) {
+          if (ev.record.playerId === this.focusId && !this.myId) {
             this.notice({ kind: "focusOut", pick: 12 - this.elimOrder.indexOf(ev.record.playerId) });
             // Give the personal banner a beat, then hand over to the director.
             const deadId = ev.record.playerId;
@@ -516,6 +561,7 @@ export class GameWorld {
     this.t += dt;
     this.arena.update(dt);
     this.updateIntroFlyby();
+    this.updateLoserEntrance();
     this.effects.update(dt);
 
     const snapB = this.snapB;
@@ -709,6 +755,21 @@ export class GameWorld {
         camPos = new Vector3(0, 34, -20);
       }
     } else if (phase === "lobby" || phase === "countdown") {
+      if (this.entrance) {
+        // Walk of shame cam: track the troll from a low side angle so the
+        // dunce cone, the tunnel, and the laughing league are all in frame.
+        const le = this.fighters.get(this.entrance.id);
+        if (le) {
+          const lp = le.rig.root.position;
+          target = lp.add(new Vector3(0, 1.1, 0));
+          camPos = lp.add(new Vector3(6.5, 2.6, -5.5));
+          this.camTarget = Vector3.Lerp(this.camTarget, target, Math.min(1, dt * 6));
+          this.camera.position = Vector3.Lerp(this.camera.position, camPos, Math.min(1, dt * 5));
+          this.camera.setTarget(this.camTarget);
+          this.updateCamShake(dt);
+          return;
+        }
+      }
       // Opening flyover: broadcast-style sweep down from the rafters into the
       // arena while the fighters line up. Ends right as the horn sounds.
       const p = Math.min(1, this.t / 7);

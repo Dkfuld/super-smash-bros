@@ -313,7 +313,7 @@ async function renderResultsCard(results: MatchResults): Promise<Blob> {
   const hatName = results.draftOrder.find((p) => p.playerId === results.rainbowHatPlayerId)?.playerName;
   if (hatName) {
     ctx.fillStyle = "#ff5f9e";
-    ctx.fillText(`🌈 Rainbow Fan-Spin Hat proudly worn by ${hatName}. Yippee!`, 60, awardsY + 36 + 4 * 32);
+    ctx.fillText(`🧌 Dunce Beanie of Shame proudly worn by ${hatName}. Yippee!`, 60, awardsY + 36 + 4 * 32);
   }
 
   return await new Promise<Blob>((resolve) => c.toBlob((b) => resolve(b!), "image/png"));

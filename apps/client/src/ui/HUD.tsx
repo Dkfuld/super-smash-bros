@@ -153,7 +153,7 @@ export function HUD({ world, isPlayer }: { world: GameWorld; isPlayer: boolean }
                   <span className="lb-rank">{r.eliminated ? `#${r.pick}` : i + 1}</span>
                   <span className="lb-name">
                     {r.name}
-                    {r.hat ? " 🌈" : ""}
+                    {r.hat ? " 🧌" : ""}
                   </span>
                   {r.eliminated ? (
                     <span className="lb-out">💥 pick {r.pick}</span>
@@ -181,7 +181,7 @@ export function HUD({ world, isPlayer }: { world: GameWorld; isPlayer: boolean }
         </div>
       )}
 
-      {yippee && <div className="yippee-pop">🌈 “Yippee!” — {yippee.name}</div>}
+      {yippee && <div className="yippee-pop">🧌 “Yippee!” — {yippee.name}</div>}
 
       {banner && (
         <div className="hud-banner">

@@ -150,64 +150,74 @@ function drawFace(scene: Scene, faceId: string, skin: string): DynamicTexture {
   return tex;
 }
 
+/**
+ * The Dunce Beanie of Shame — last season's loser wears a tall white dunce
+ * cone with a big red L, topped by a constantly spinning propeller. Pure
+ * cartoon-dunce humor: the joke is the dunce cap, nothing else.
+ */
 export function createRainbowHat(scene: Scene, parent: TransformNode, particleScale: number): { node: TransformNode; update: (dt: number, moving: boolean) => void } {
-  const node = new TransformNode("rainbowHat", scene);
+  const node = new TransformNode("shameHat", scene);
   node.parent = parent;
   node.position.y = 0.52;
 
-  const capMat = mat(scene, "hatCap", "#ffd23f", 0.25);
+  // Green beanie base with a gold brim (last place gets team-of-shame colors)
   const cap = MeshBuilder.CreateSphere("hatDome", { diameter: 0.72, slice: 0.55 }, scene);
-  cap.material = capMat;
+  cap.material = mat(scene, "hatCap", "#1c4632", 0.15);
   cap.parent = node;
   const brim = MeshBuilder.CreateCylinder("hatBrim", { diameter: 0.86, height: 0.05 }, scene);
-  brim.material = mat(scene, "hatBrim", "#ff5f9e", 0.3);
+  brim.material = mat(scene, "hatBrim", "#ffb612", 0.3);
   brim.parent = node;
   brim.position.y = -0.02;
 
-  const mast = MeshBuilder.CreateCylinder("hatMast", { diameter: 0.06, height: 0.3 }, scene);
+  // Tall dunce cone with a painted red L
+  const coneTex = new DynamicTexture("dunceTex", { width: 128, height: 128 }, scene, true);
+  {
+    const ctx = coneTex.getContext() as unknown as CanvasRenderingContext2D;
+    ctx.fillStyle = "#f4f0e6";
+    ctx.fillRect(0, 0, 128, 128);
+    ctx.fillStyle = "#d61c30";
+    ctx.font = "bold 74px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("L", 64, 70);
+    coneTex.update();
+  }
+  const coneMat = new StandardMaterial("dunceMat", scene);
+  coneMat.diffuseTexture = coneTex;
+  coneMat.specularColor = new Color3(0.05, 0.05, 0.05);
+  const cone = MeshBuilder.CreateCylinder("dunceCone", { diameterTop: 0.02, diameterBottom: 0.5, height: 0.85, tessellation: 16 }, scene);
+  cone.material = coneMat;
+  cone.parent = node;
+  cone.position.y = 0.55;
+
+  // Propeller on the tip — spins forever
+  const mast = MeshBuilder.CreateCylinder("hatMast", { diameter: 0.05, height: 0.16 }, scene);
   mast.material = mat(scene, "hatMast", "#cccccc");
   mast.parent = node;
-  mast.position.y = 0.4;
-
+  mast.position.y = 1.02;
   const fan = new TransformNode("hatFan", scene);
   fan.parent = node;
-  fan.position.y = 0.55;
-  const rainbow = ["#ff3b3b", "#ff9f2e", "#ffe83b", "#43d94e", "#3b8bff", "#a04ef2"];
-  rainbow.forEach((hex, i) => {
-    const blade = MeshBuilder.CreateBox(`blade${i}`, { width: 0.5, height: 0.02, depth: 0.14 }, scene);
-    blade.material = mat(scene, `blade${i}`, hex, 0.5);
+  fan.position.y = 1.1;
+  const bladeColors = ["#1c4632", "#ffb612", "#7a4b23", "#1c4632"];
+  bladeColors.forEach((hex, i) => {
+    const blade = MeshBuilder.CreateBox(`blade${i}`, { width: 0.46, height: 0.02, depth: 0.13 }, scene);
+    blade.material = mat(scene, `blade${i}`, hex, 0.45);
     blade.parent = fan;
-    blade.rotation.y = (i / rainbow.length) * Math.PI * 2;
-    blade.position.x = Math.sin(blade.rotation.y) * 0.26;
-    blade.position.z = Math.cos(blade.rotation.y) * 0.26;
+    blade.rotation.y = (i / bladeColors.length) * Math.PI * 2;
+    blade.position.x = Math.sin(blade.rotation.y) * 0.24;
+    blade.position.z = Math.cos(blade.rotation.y) * 0.24;
     blade.rotation.x = 0.18;
-    blade.setPivotPoint(new Vector3(-0.25, 0, 0));
+    blade.setPivotPoint(new Vector3(-0.23, 0, 0));
   });
-  const hub = MeshBuilder.CreateSphere("hatHub", { diameter: 0.12 }, scene);
+  const hub = MeshBuilder.CreateSphere("hatHub", { diameter: 0.11 }, scene);
   hub.material = mat(scene, "hatHub", "#ffffff", 0.6);
   hub.parent = fan;
-
-  // trailing ribbons
-  const ribbons: Mesh[] = [];
-  for (let i = 0; i < 3; i++) {
-    const r = MeshBuilder.CreatePlane(`ribbon${i}`, { width: 0.07, height: 0.5 }, scene);
-    r.material = mat(scene, `ribbon${i}`, rainbow[(i * 2) % 6] ?? "#fff", 0.4);
-    (r.material as StandardMaterial).backFaceCulling = false;
-    r.parent = node;
-    r.position.set(Math.sin((i / 3) * Math.PI * 2) * 0.4, -0.05, Math.cos((i / 3) * Math.PI * 2) * 0.4);
-    r.rotation.x = 0.4;
-    ribbons.push(r);
-  }
 
   let t = Math.random() * 10;
   const update = (dt: number, moving: boolean): void => {
     t += dt;
     fan.rotation.y += dt * 9; // aggressive continuous spin
     node.rotation.z = Math.sin(t * (moving ? 7 : 2.4)) * (moving ? 0.09 : 0.035); // wobble
-    ribbons.forEach((r, i) => {
-      r.rotation.x = 0.4 + Math.sin(t * 4 + i * 2) * 0.3;
-      r.rotation.z = Math.sin(t * 3 + i) * 0.25;
-    });
   };
   void particleScale;
   return { node, update };
@@ -221,7 +231,7 @@ export function createRainbowHat(scene: Scene, parent: TransformNode, particleSc
 export const FIGHTER_KITS = [
   "knight", "ninja", "wizard", "robot", "viking", "boxer",
   "archer", "pirate", "luchador", "samurai", "scientist", "hero",
-  "royal", "ape", "dragon", "hunter",
+  "royal", "ape", "dragon", "hunter", "troll",
 ] as const;
 export type FighterKit = (typeof FIGHTER_KITS)[number];
 
@@ -242,6 +252,7 @@ export const KIT_INFO: Record<FighterKit, { label: string; emoji: string }> = {
   ape: { label: "Jungle Bruiser", emoji: "🦍" },
   dragon: { label: "Dragon Tyrant", emoji: "🐉" },
   hunter: { label: "Space Hunter", emoji: "🛰" },
+  troll: { label: "Shame Troll (last place)", emoji: "🧌" },
 };
 
 /** Kits that cover the head (procedural hair is skipped for these). */
@@ -748,6 +759,51 @@ export function createCharacter(
         cannon.parent = armL.pivot;
         cannon.rotation.x = Math.PI / 2;
         cannon.position.y = -armLen * 0.7;
+        break;
+      }
+      case "troll": {
+        // The Shame Troll — auto-assigned to last season's loser. Green
+        // jersey, gold shorts, brown troll details: the classic cartoon dunce.
+        torso.material = mat(scene, "trollJersey", "#1c4632");
+        shorts.material = mat(scene, "trollShorts", "#ffb612");
+        const trollHide = mat(scene, "trollHide", "#7a4b23");
+        // pointy troll ears
+        for (const side of [-1, 1]) {
+          const ear = MeshBuilder.CreateCylinder("trollEar", { diameterTop: 0, diameterBottom: 0.12 * hs, height: 0.24 * hs }, scene);
+          ear.material = trollHide;
+          ear.parent = headScaleNode;
+          ear.position.set(side * 0.3 * hs, hy + 0.02, 0);
+          ear.rotation.z = -side * 1.25;
+        }
+        // big warty troll nose
+        const nose = MeshBuilder.CreateSphere("trollNose", { diameter: 0.16 * hs }, scene);
+        nose.material = mat(scene, "trollNoseM", "#8fae3f");
+        nose.parent = headScaleNode;
+        nose.position.set(0, 0.2 * hs, 0.3 * hs);
+        // scraggly shoulder fur + a big L medallion, so the shame reads at distance
+        const scruff = MeshBuilder.CreateSphere("trollScruff", { diameterX: 0.85 * body.width, diameterY: 0.3, diameterZ: 0.55 * body.width }, scene);
+        scruff.material = trollHide;
+        scruff.parent = visual;
+        scruff.position.y = 1.02;
+        const medal = MeshBuilder.CreateCylinder("trollMedal", { diameter: 0.24, height: 0.03 }, scene);
+        const medalTex = new DynamicTexture("trollMedalTex", { width: 64, height: 64 }, scene, true);
+        {
+          const c = medalTex.getContext() as unknown as CanvasRenderingContext2D;
+          c.fillStyle = "#ffb612";
+          c.fillRect(0, 0, 64, 64);
+          c.fillStyle = "#d61c30";
+          c.font = "bold 44px system-ui, sans-serif";
+          c.textAlign = "center";
+          c.textBaseline = "middle";
+          c.fillText("L", 32, 36);
+          medalTex.update();
+        }
+        const medalMat = new StandardMaterial("trollMedalM", scene);
+        medalMat.diffuseTexture = medalTex;
+        medal.material = medalMat;
+        medal.parent = visual;
+        medal.rotation.x = Math.PI / 2;
+        medal.position.set(0, 0.85, 0.24 * body.width * body.bellyScale + 0.08);
         break;
       }
       case "hero": {

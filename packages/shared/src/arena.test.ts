@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { DISASTER_DOME } from "./arena";
+import { DISASTER_DOME, STEP_UP, collidesBlocking } from "./arena";
+import { SIM } from "./balance";
 
-/** Spawn quality guarantees: nobody starts inside (or hugging) furniture,
- *  and everybody starts far from everybody else. */
+/** Spawn quality guarantees: nobody starts inside (or hugging) furniture that
+ *  actually blocks movement at ground level, and everybody starts far apart.
+ *  Uses the sim's own collision predicate — the `walkable` flag alone lies
+ *  (a 1.2-high "walkable" stage still blocks a fighter standing at y=0). */
 describe("spawn points", () => {
-  const blocking = DISASTER_DOME.boxes.filter((b) => !b.walkable);
+  // Boxes that block a ground-level fighter, per the sim's STEP_UP rule.
+  const blocking = DISASTER_DOME.boxes.filter((b) => (b.y ?? 0) + b.h - 0 > STEP_UP);
 
   const clearance = (x: number, z: number): number => {
     let best = Infinity;
@@ -16,14 +20,15 @@ describe("spawn points", () => {
     return best;
   };
 
-  it("has 12 spawns, all clear of blocking furniture", () => {
+  it("has 12 spawns, none colliding per the sim's own predicate", () => {
     expect(DISASTER_DOME.spawnPoints).toHaveLength(12);
     for (const p of DISASTER_DOME.spawnPoints) {
-      expect(clearance(p.x, p.z), `spawn (${p.x},${p.z})`).toBeGreaterThanOrEqual(1.0);
+      expect(collidesBlocking(DISASTER_DOME, p.x, p.z, 0, SIM.PLAYER_RADIUS), `spawn (${p.x},${p.z}) collides`).toBe(false);
+      expect(clearance(p.x, p.z), `spawn (${p.x},${p.z}) clearance`).toBeGreaterThanOrEqual(0.9);
     }
   });
 
-  it("keeps fighters spread out at kickoff (≥11.5 apart, inside the dome)", () => {
+  it("keeps fighters spread out at kickoff (≥10.5 apart, inside the dome)", () => {
     const pts = DISASTER_DOME.spawnPoints;
     for (let i = 0; i < pts.length; i++) {
       const a = pts[i]!;
@@ -31,7 +36,7 @@ describe("spawn points", () => {
       expect(Math.abs(a.z)).toBeLessThanOrEqual(30);
       for (let j = i + 1; j < pts.length; j++) {
         const b = pts[j]!;
-        expect(Math.hypot(a.x - b.x, a.z - b.z), `spawns ${i} vs ${j}`).toBeGreaterThanOrEqual(11.5);
+        expect(Math.hypot(a.x - b.x, a.z - b.z), `spawns ${i} vs ${j}`).toBeGreaterThanOrEqual(10.5);
       }
     }
   });

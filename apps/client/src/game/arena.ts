@@ -6,6 +6,7 @@ import {
   Scene,
   StandardMaterial,
   TransformNode,
+  Vector4,
 } from "@babylonjs/core";
 import { type ArenaBox, type ArenaLayout } from "@ddd/shared";
 import type { QualityParams } from "./quality";
@@ -188,9 +189,23 @@ export function buildArena(scene: Scene, layout: ArenaLayout, q: QualityParams):
       ctx.stroke();
     }
     ctx.restore();
+    // "SMASH DOME ★" written around the crest ring — arc text reads fine
+    // from every camera angle, unlike a straight line (which looks like
+    // mirror-writing from the far sideline).
     ctx.fillStyle = "#ffd23f";
-    ctx.font = "bold 26px system-ui, sans-serif";
-    ctx.fillText("SMASH DOME", 512, 560);
+    ctx.font = "bold 30px system-ui, sans-serif";
+    {
+      const ring = "SMASH ★ DOME ★ ";
+      const rr = 74;
+      for (let i = 0; i < ring.length; i++) {
+        const a = (i / ring.length) * Math.PI * 2 - Math.PI / 2;
+        ctx.save();
+        ctx.translate(512 + Math.cos(a) * rr, 512 + Math.sin(a) * rr);
+        ctx.rotate(a + Math.PI / 2);
+        ctx.fillText(ring[i] ?? "", 0, 0);
+        ctx.restore();
+      }
+    }
     // cleat scuffs and big-play skid marks
     ctx.strokeStyle = "rgba(12,28,10,0.28)";
     ctx.lineWidth = 3;
@@ -377,9 +392,10 @@ export function buildArena(scene: Scene, layout: ArenaLayout, q: QualityParams):
     dmMat.diffuseColor = Color3.Black();
     dmMat.disableLighting = true;
     dmMat.backFaceCulling = false;
-    const sign = MeshBuilder.CreatePlane("downSign", { width: 0.7, height: 0.7 }, scene);
+    const sign = MeshBuilder.CreatePlane("downSign", { width: 0.7, height: 0.7, sideOrientation: Mesh.DOUBLESIDE, backUVs: new Vector4(1, 0, 0, 1) }, scene);
     sign.material = dmMat;
     sign.position.set(-13, 2.7, 19.6);
+    sign.rotation.y = Math.PI; // face the field, not the wall
     sign.parent = root;
   }
 
@@ -426,7 +442,7 @@ export function buildArena(scene: Scene, layout: ArenaLayout, q: QualityParams):
     towMat.diffuseColor = Color3.Black();
     towMat.disableLighting = true;
     towMat.backFaceCulling = false;
-    towBanner = MeshBuilder.CreatePlane("towBanner", { width: 7.5, height: 0.95, sideOrientation: Mesh.DOUBLESIDE }, scene);
+    towBanner = MeshBuilder.CreatePlane("towBanner", { width: 7.5, height: 0.95, sideOrientation: Mesh.DOUBLESIDE, backUVs: new Vector4(1, 0, 0, 1) }, scene);
     towBanner.material = towMat;
     towBanner.position.set(-6.6, -0.2, 0);
     towBanner.parent = blimpRoot;
@@ -1187,8 +1203,9 @@ export function buildArena(scene: Scene, layout: ArenaLayout, q: QualityParams):
     const bMat = new StandardMaterial(`banner${i}`, scene);
     bMat.diffuseTexture = tex;
     bMat.emissiveColor = new Color3(0.45, 0.45, 0.45);
-    bMat.backFaceCulling = false;
-    const banner = MeshBuilder.CreatePlane(`bannerP${i}`, { width: 7, height: 2.4 }, scene);
+    // Double-sided with mirrored back UVs so the text reads correctly from
+    // BOTH sides — a plain backFaceCulling=false plane shows mirror writing.
+    const banner = MeshBuilder.CreatePlane(`bannerP${i}`, { width: 7, height: 2.4, sideOrientation: Mesh.DOUBLESIDE, backUVs: new Vector4(1, 0, 0, 1) }, scene);
     banner.material = bMat;
     const a = (i / bannerTexts.length) * Math.PI * 2 + 0.5;
     banner.position.set(Math.cos(a) * 26, 9.5, Math.sin(a) * 26);

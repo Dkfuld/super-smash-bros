@@ -147,10 +147,10 @@ export function HostDashboard({ demo }: { demo?: boolean }): JSX.Element {
                   />
                   <button
                     className={`loser-btn ${s.isPreviousLoser ? "selected" : ""}`}
-                    title="Mark as last season's last place (wears the Rainbow Fan-Spin Hat)"
+                    title="Mark as last season's last place (wears the Dunce Beanie of Shame)"
                     onClick={() => connection.send({ t: "hostSetPreviousLoser", slotIndex: s.slotIndex })}
                   >
-                    🌈
+                    🧌
                   </button>
                   <span className={`status ${s.status === "human" ? (s.connStatus === "connected" ? "human" : "disconnected") : s.status}`}>
                     {s.status === "human" ? (s.connStatus === "connected" ? (s.ready ? "ready ✓" : "joined") : "offline") : s.status === "ai" ? "AI" : "open"}
@@ -184,7 +184,7 @@ export function HostDashboard({ demo }: { demo?: boolean }): JSX.Element {
               </button>
             </div>
             <HostSettings settings={room.settings} />
-            {!loserPicked && <p style={{ fontSize: "0.78rem", color: "var(--gold)" }}>💡 Tap 🌈 next to last season's last-place finisher — they must wear the Hat.</p>}
+            {!loserPicked && <p style={{ fontSize: "0.78rem", color: "var(--gold)" }}>💡 Tap 🧌 next to last season's last-place finisher — they must wear the Hat.</p>}
             <button
               className="btn gold"
               disabled={filled < 12}
@@ -203,7 +203,7 @@ export function HostDashboard({ demo }: { demo?: boolean }): JSX.Element {
           <>
             <div className="row">
               <button className="btn small" onClick={() => { audio.play("sparklePop"); connection.send({ t: "hostYippee" }); }}>
-                🌈 YIPPEE!
+                🧌 YIPPEE!
               </button>
               <button
                 className="btn small secondary"
@@ -228,7 +228,7 @@ export function HostDashboard({ demo }: { demo?: boolean }): JSX.Element {
               {room.slots.map((s) => (
                 <div className="slot-row" key={s.slotIndex}>
                   <span className="num">{s.slotIndex + 1}</span>
-                  <span className="name">{s.name}{s.isPreviousLoser ? " 🌈" : ""}</span>
+                  <span className="name">{s.name}{s.isPreviousLoser ? " 🧌" : ""}</span>
                   <span className={`status ${s.connStatus === "connected" ? (s.status === "ai" ? "ai" : "human") : s.connStatus === "ai-takeover" ? "ai" : "disconnected"}`}>
                     {s.status === "ai" ? "AI" : s.connStatus === "connected" ? "live" : s.connStatus === "ai-takeover" ? "AI takeover" : "offline"}
                   </span>
@@ -255,7 +255,7 @@ export function HostDashboard({ demo }: { demo?: boolean }): JSX.Element {
             <h2 style={{ fontWeight: 900 }}>Waiting for fighters…</h2>
             <p className="subtitle">
               Players scan the QR code or open the link and pick their league identity. Fill missing members with AI, pick
-              last season's loser (🌈), then start the match.
+              last season's loser (🧌), then start the match.
             </p>
           </div>
         )}
@@ -340,7 +340,7 @@ function HostSettings({ settings: s }: { settings: MatchSettings }): JSX.Element
       {slider("Yippee frequency", "yippeeFrequency", 0, 3, 0.25)}
       {slider("Sudden death at (sec)", "suddenDeathAtSec", 120, 900, 30)}
       {slider("Spectator delay (sec)", "spectatorDelaySec", 0, 30, 1)}
-      {toggle("Make Last Place Suffer 🌈", "makeLastPlaceSuffer")}
+      {toggle("Make Last Place Suffer 🧌", "makeLastPlaceSuffer")}
       {toggle("Friendly visual effects", "friendlyVisualEffects")}
     </div>
   );

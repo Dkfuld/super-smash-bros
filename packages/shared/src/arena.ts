@@ -88,7 +88,7 @@ const boxes: ArenaBox[] = [
 // hugging furniture; these points are all ≥1.25 clear of every blocking box
 // and ≥14 apart from each other (verified by script — see spawn test).
 const spawnPoints: Vec2[] = [
-  { x: 25.4, z: 6.3 }, { x: 20.1, z: 19.6 }, { x: 7.3, z: 25.7 }, { x: -7, z: 25.7 },
+  { x: 25.4, z: 6.3 }, { x: 20.1, z: 19.6 }, { x: 11.5, z: 26.5 }, { x: -11.5, z: 26.5 },
   { x: -20.2, z: 20.1 }, { x: -27.5, z: 7.6 }, { x: -25.4, z: -6.7 }, { x: -20.2, z: -20.2 },
   { x: -7.7, z: -27.4 }, { x: 6.7, z: -25.8 }, { x: 20.1, z: -20.2 }, { x: 27.4, z: -7.9 },
 ];

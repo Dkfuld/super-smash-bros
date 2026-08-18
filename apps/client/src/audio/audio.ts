@@ -193,6 +193,11 @@ class AudioEngine {
     }
   }
 
+  /** Cut off any queued/playing speech immediately (e.g. intro skipped). */
+  stopSpeech(): void {
+    if ("speechSynthesis" in window) speechSynthesis.cancel();
+  }
+
   // ---------------- procedural music ----------------
 
   setMusic(track: "none" | "menu" | "arena" | "finalTwo" | "victory"): void {

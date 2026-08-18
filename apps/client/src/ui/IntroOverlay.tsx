@@ -17,11 +17,13 @@ interface Card {
 export function IntroOverlay({
   league,
   loserName,
+  loserId,
   getWorld,
   onDone,
 }: {
   league: string;
   loserName: string;
+  loserId: string | null;
   /** Live getter — the GameWorld mounts after this overlay's first render. */
   getWorld: () => GameWorld | null;
   onDone: () => void;
@@ -47,15 +49,15 @@ export function IntroOverlay({
         ? [
             {
               at: 7.6,
-              h1: "🌈 LAST SEASON'S LOSER",
-              h2: `${loserName} — POINT AT YOUR PHONE AND LAUGH`,
-              speak: `And please welcome back, wearing the rainbow hat of shame... last season's biggest disappointment: ${loserName}!`,
+              h1: "🧌 THE WALK OF SHAME",
+              h2: `${loserName} — LAST PLACE — POINT AT YOUR PHONE AND LAUGH`,
+              speak: `And now, trudging out of the tunnel in the dunce cap they earned... last season's biggest disappointment: ${loserName}! Look at them. LOOK AT THEM.`,
               mood: "roast" as const,
             },
           ]
         : []),
       {
-        at: loserName ? 12.4 : 7.6,
+        at: loserName ? 13.4 : 7.6,
         h1: "IT'S DRAFT NIGHT",
         h2: "KICKOFF!",
         speak: "Enough talk. It's draft night. KICKOFF!",
@@ -68,7 +70,9 @@ export function IntroOverlay({
           setCard(c);
           if (c.speak) audio.speak(c.speak, "announcer", "excited");
           if (c.mood === "roast" && loserName) {
-            getWorld()?.startIntroFlyby(`${loserName} FINISHED DEAD LAST`, 5.4);
+            const w = getWorld();
+            if (loserId) w?.startLoserEntrance(loserId, 5.4);
+            w?.startIntroFlyby(`${loserName} FINISHED DEAD LAST`, 5.4);
           }
         }, c.at * 1000),
       );
@@ -100,6 +104,7 @@ export function IntroOverlay({
         onClick={() => {
           if (!done.current) {
             done.current = true;
+            audio.stopSpeech(); // cut queued roast lines mid-word
             onDone();
           }
         }}

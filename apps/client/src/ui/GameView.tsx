@@ -53,6 +53,10 @@ export function GameView({
     return world.onHud((h) => setNearPickup(h.nearPickup));
   }, [world]);
 
+  // "My guy" stays pinned to the fighter this viewer picked at the start —
+  // browsing other fighters must not re-target it.
+  const myGuyId = initialFocusId ?? null;
+
   const pickCam = (c: SpectatorCam): void => {
     setCam(c);
     world?.setSpectatorCam(c);
@@ -60,7 +64,10 @@ export function GameView({
   const followPlayer = (id: string): void => {
     setFollowId(id);
     setCam("follow");
-    world?.setSpectatorCam("follow", id);
+    // Personal devices (viewer picked a fighter) adopt whoever they follow —
+    // big splat + personal banners. Shared TVs (no pick) just move the camera.
+    if (myGuyId) world?.setFocus(id);
+    else world?.setSpectatorCam("follow", id);
   };
 
   return (
@@ -71,8 +78,8 @@ export function GameView({
       {world && !myId && spectatorUi && (
         <>
           <div className="spec-controls">
-            {followId && (
-              <button className={cam === "follow" ? "active" : ""} onClick={() => followPlayer(followId)}>
+            {myGuyId && (
+              <button className={cam === "follow" && followId === myGuyId ? "active" : ""} onClick={() => followPlayer(myGuyId)}>
                 <span className="ico">👤</span>
                 <span className="lbl"> My guy</span>
               </button>
@@ -92,7 +99,7 @@ export function GameView({
                 onClick={() => followPlayer(p.id)}
               >
                 {p.name}
-                {p.isPreviousLoser ? " 🌈" : ""}
+                {p.isPreviousLoser ? " 🧌" : ""}
               </button>
             ))}
           </div>

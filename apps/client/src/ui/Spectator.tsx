@@ -39,7 +39,7 @@ export function Spectator({ roomCode }: { roomCode: string }): JSX.Element {
           {room.slots.map((s) => (
             <button key={s.slotIndex} disabled style={{ opacity: 1 }}>
               {s.name}
-              {s.isPreviousLoser ? " 🌈" : ""}
+              {s.isPreviousLoser ? " 🧌" : ""}
               <div style={{ fontSize: "0.7rem", color: s.ready || s.status === "ai" ? "var(--green)" : "var(--text-dim)" }}>
                 {s.status === "ai" ? "AI ready" : s.ready ? "ready ✓" : s.status === "human" ? "customizing…" : "not joined"}
               </div>
