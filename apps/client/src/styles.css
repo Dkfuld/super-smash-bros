@@ -238,6 +238,61 @@ input, select, textarea { font: inherit; }
   color: var(--gold);
 }
 .hud-caption .who { color: var(--cyan); }
+/* Spectator chrome owns the bottom edge (view bar + roster) — captions sit above it. */
+.hud.spectator .hud-caption { bottom: calc(7.4rem + env(safe-area-inset-bottom)); }
+
+/* ---------- pre-kickoff intro show ---------- */
+.intro-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 250;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at center, transparent 30%, rgba(6, 3, 16, 0.55) 100%);
+}
+.intro-card {
+  text-align: center;
+  padding: 0 1rem;
+  animation: introPop 0.55s cubic-bezier(0.2, 1.5, 0.4, 1);
+}
+@keyframes introPop { from { transform: scale(0.55) rotate(-2deg); opacity: 0; } }
+.intro-card h1 {
+  font-size: clamp(1.7rem, 7.5vw, 3.6rem);
+  font-weight: 900;
+  color: var(--gold);
+  text-shadow: 0 4px 0 #7a3b12, 0 12px 34px rgba(0, 0, 0, 0.75);
+  line-height: 1.1;
+}
+.intro-card h2 {
+  margin-top: 0.5rem;
+  font-size: clamp(0.95rem, 4vw, 1.5rem);
+  font-weight: 800;
+  color: var(--text);
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+}
+.intro-card.roast h1 { color: var(--pink); text-shadow: 0 4px 0 #5c1030, 0 12px 34px rgba(0, 0, 0, 0.75); }
+.intro-card.roast h2 { color: var(--gold); }
+.intro-skip {
+  position: fixed;
+  top: max(0.5rem, env(safe-area-inset-top));
+  right: max(3.4rem, calc(env(safe-area-inset-right) + 3rem)); /* clear of ⚙ */
+  pointer-events: auto;
+}
+
+.results-actions {
+  position: fixed;
+  bottom: max(0.6rem, env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 300;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem;
+  max-width: 96vw;
+}
 
 .hud-banner {
   position: absolute;
@@ -391,9 +446,10 @@ input, select, textarea { font: inherit; }
 .qr-box { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; }
 .qr-box img { width: 11rem; height: 11rem; border-radius: 12px; background: #fff; padding: 0.5rem; }
 
+/* Camera switcher lives in the thumb zone, just above the roster strip. */
 .spec-controls {
   position: absolute;
-  top: 0.6rem;
+  bottom: calc(3.9rem + env(safe-area-inset-bottom));
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -404,8 +460,13 @@ input, select, textarea { font: inherit; }
   border-radius: 12px;
   border: 1px solid var(--panel-border);
 }
-.spec-controls button { padding: 0.35rem 0.7rem; border-radius: 8px; font-size: 0.8rem; font-weight: 700; color: var(--text-dim); }
+.spec-controls button { padding: 0.4rem 0.75rem; min-height: 40px; border-radius: 8px; font-size: 0.8rem; font-weight: 700; color: var(--text-dim); }
 .spec-controls button.active { background: var(--pink); color: #fff; }
+@media (max-width: 700px) {
+  .spec-controls .lbl { display: none; }
+  .spec-controls button { font-size: 1.05rem; padding: 0.35rem 0.85rem; }
+  .top-actions .lbl { display: none; }
+}
 
 /* ---------- onboarding ---------- */
 .onboard { display: flex; gap: 1rem; width: 100%; max-width: 62rem; align-items: stretch; flex-wrap: wrap; justify-content: center; }
@@ -566,6 +627,18 @@ input, select, textarea { font: inherit; }
   backdrop-filter: blur(6px);
 }
 .lb-title { font-size: 0.62rem; font-weight: 900; letter-spacing: 0.14em; color: var(--gold); text-align: center; margin-bottom: 0.3rem; }
+@media (max-width: 700px) {
+  /* Portrait phones: trophy drops below the gear, standings hang under it,
+     narrower and clear of the top-center timer pill. */
+  .board-toggle { top: max(3.2rem, calc(env(safe-area-inset-top) + 2.9rem)); right: max(0.5rem, env(safe-area-inset-right)); }
+  .leaderboard {
+    top: max(5.9rem, calc(env(safe-area-inset-top) + 5.6rem));
+    width: min(60vw, 12.5rem);
+    max-height: 46vh;
+    padding: 0.35rem;
+  }
+  .lb-row { font-size: 0.66rem; }
+}
 .lb-row {
   display: flex;
   align-items: center;

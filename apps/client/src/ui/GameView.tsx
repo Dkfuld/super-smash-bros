@@ -17,12 +17,14 @@ export function GameView({
   spectatorUi,
   initialFocusId,
   kits,
+  onWorld,
 }: {
   participants: ParticipantSlot[];
   myId: string | null;
   spectatorUi?: boolean;
   initialFocusId?: string | null;
   kits?: Array<FighterKit | undefined>;
+  onWorld?: (w: GameWorld | null) => void;
 }): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [world, setWorld] = useState<GameWorld | null>(null);
@@ -37,7 +39,11 @@ export function GameView({
     const w = new GameWorld(canvas, participants, myId, hatId, kits);
     if (initialFocusId) w.setFocus(initialFocusId);
     setWorld(w);
-    return () => w.dispose();
+    onWorld?.(w);
+    return () => {
+      onWorld?.(null);
+      w.dispose();
+    };
     // participants identity is stable for a given match
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [myId]);
@@ -65,9 +71,16 @@ export function GameView({
       {world && !myId && spectatorUi && (
         <>
           <div className="spec-controls">
+            {followId && (
+              <button className={cam === "follow" ? "active" : ""} onClick={() => followPlayer(followId)}>
+                <span className="ico">👤</span>
+                <span className="lbl"> My guy</span>
+              </button>
+            )}
             {(["director", "overhead", "arena"] as const).map((c) => (
               <button key={c} className={cam === c ? "active" : ""} onClick={() => pickCam(c)}>
-                {c === "director" ? "🎬 Director" : c === "overhead" ? "🗺 Overhead" : "🏟 Arena"}
+                <span className="ico">{c === "director" ? "🎬" : c === "overhead" ? "🗺" : "🏟"}</span>
+                <span className="lbl"> {c === "director" ? "Director" : c === "overhead" ? "Overhead" : "Arena"}</span>
               </button>
             ))}
           </div>

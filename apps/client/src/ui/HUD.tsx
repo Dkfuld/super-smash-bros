@@ -10,7 +10,9 @@ interface FeedItem {
 /** In-match HUD: health, timers, kill feed, captions, big-moment banners. */
 export function HUD({ world, isPlayer }: { world: GameWorld; isPlayer: boolean }): JSX.Element {
   const [hud, setHud] = useState<HudState | null>(null);
-  const [boardOpen, setBoardOpen] = useState(!isPlayer); // spectators see standings by default
+  // Spectators see standings by default on wide screens; on phones the panel
+  // starts collapsed (the 🏆 button opens it) so the action isn't covered.
+  const [boardOpen, setBoardOpen] = useState(!isPlayer && window.innerWidth > 700);
   const [feed, setFeed] = useState<FeedItem[]>([]);
   const [caption, setCaption] = useState<{ text: string; mood: string } | null>(null);
   const [yippee, setYippee] = useState<{ id: number; name: string } | null>(null);
@@ -46,8 +48,8 @@ export function HUD({ world, isPlayer }: { world: GameWorld; isPlayer: boolean }
             break;
           }
           case "phase":
-            if (n.phase === "countdown") showBanner("GET READY!", "Match starting…");
-            else if (n.phase === "playing") showBanner("GO!", undefined, 1500);
+            if (n.phase === "countdown") showBanner("GET READY!", "Kickoff imminent…");
+            else if (n.phase === "playing") showBanner("KICKOFF!", undefined, 1500);
             else if (n.phase === "suddenDeath") showBanner("SUDDEN DEATH", "The Dome has lost its patience");
             break;
           case "finalTwo":
@@ -63,14 +65,17 @@ export function HUD({ world, isPlayer }: { world: GameWorld; isPlayer: boolean }
             showBanner("👑 YOU WIN!", "FIRST OVERALL PICK IS YOURS!", 9000);
             break;
           case "splat": {
-            if (settings.flashReduction) break;
+            // Flash reduction tones the splat down — it must never remove it
+            // entirely, or deaths look like nothing happened.
+            const calm = settings.flashReduction;
             const id = feedId.current++;
-            const blobs = Array.from({ length: n.big ? 14 : 8 }, () => ({
+            const count = n.big ? (calm ? 6 : 14) : (calm ? 4 : 8);
+            const blobs = Array.from({ length: count }, () => ({
               x: 4 + Math.random() * 92,
               y: 4 + Math.random() * 92,
-              r: (n.big ? 16 : 10) + Math.random() * (n.big ? 22 : 12),
+              r: (n.big ? (calm ? 10 : 16) : (calm ? 7 : 10)) + Math.random() * (n.big ? (calm ? 10 : 22) : (calm ? 6 : 12)),
             }));
-            setSplats((s) => [...s.slice(-2), { id, big: n.big, blobs }]);
+            setSplats((s) => [...s.slice(-2), { id, big: n.big && !calm, blobs }]);
             setTimeout(() => setSplats((s) => s.filter((x) => x.id !== id)), n.big ? 1700 : 1100);
             break;
           }

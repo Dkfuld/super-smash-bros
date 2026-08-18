@@ -83,10 +83,15 @@ const boxes: ArenaBox[] = [
   { kind: "railing", x: 30.5, z: -12, w: 0.5, d: 16, h: 1.0, walkable: false },
 ];
 
-const spawnPoints: Vec2[] = Array.from({ length: 12 }, (_, i) => {
-  const a = (i / 12) * Math.PI * 2 + Math.PI / 12;
-  return { x: Math.cos(a) * 23, z: Math.sin(a) * 23 };
-});
+// Hand-placed spawn ring (r ≈ 24–28.5), slot order still walking the circle.
+// The old radius-23 ring put slot 3 inside the podium and had three fighters
+// hugging furniture; these points are all ≥1.25 clear of every blocking box
+// and ≥14 apart from each other (verified by script — see spawn test).
+const spawnPoints: Vec2[] = [
+  { x: 25.4, z: 6.3 }, { x: 20.1, z: 19.6 }, { x: 7.3, z: 25.7 }, { x: -7, z: 25.7 },
+  { x: -20.2, z: 20.1 }, { x: -27.5, z: 7.6 }, { x: -25.4, z: -6.7 }, { x: -20.2, z: -20.2 },
+  { x: -7.7, z: -27.4 }, { x: 6.7, z: -25.8 }, { x: 20.1, z: -20.2 }, { x: 27.4, z: -7.9 },
+];
 
 const weaponDropPoints: Vec2[] = [
   { x: 0, z: 2 }, { x: 0, z: 21 }, { x: -10, z: 8 }, { x: 10, z: -8 },

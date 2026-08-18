@@ -87,7 +87,9 @@ interface FighterEntity {
   lastWeapon: string | null;
   prev: FighterSnap | null;
   next: FighterSnap | null;
+  /** true once the rig has been hidden after elimination (hide-once latch). */
   koLaunched: boolean;
+  lastVis?: number;
 }
 
 /**
@@ -202,7 +204,45 @@ export class GameWorld {
 
   setSpectatorCam(cam: SpectatorCam, followId?: string): void {
     this.specCam = cam;
-    if (followId) this.specFollowId = followId;
+    if (followId) {
+      this.specFollowId = followId;
+      // Following a fighter makes them "yours": personal banners and the big
+      // splat key off focusId, so keep it in sync with the roster picks.
+      this.focusId = followId;
+    }
+  }
+
+  // ---------------- intro flyby ----------------
+
+  private flyby: { start: number; dur: number } | null = null;
+
+  /**
+   * Scripted blimp pass for the intro: the SMASH AIR blimp crosses the middle
+   * of the dome towing a roast banner, right through the flyover camera's
+   * frame. Purely visual — the sim doesn't tick during the intro overlay.
+   */
+  startIntroFlyby(bannerText: string, durationSec = 6): void {
+    this.arena.setBlimpAuto(false);
+    this.arena.setBlimpBanner(bannerText.toUpperCase());
+    this.flyby = { start: this.t, dur: durationSec };
+  }
+
+  private updateIntroFlyby(): void {
+    if (!this.flyby) return;
+    const p = (this.t - this.flyby.start) / this.flyby.dur;
+    if (p >= 1) {
+      this.flyby = null;
+      this.arena.setBlimpBanner(null);
+      this.arena.setBlimpAuto(true);
+      return;
+    }
+    // Straight low pass across midfield, nose pointed along the travel line.
+    const e = p * p * (3 - 2 * p); // smoothstep: eases in and out of frame
+    const from = { x: -44, y: 8.6, z: 9 };
+    const to = { x: 44, y: 8.6, z: -7 };
+    const b = this.arena.blimp;
+    b.position.set(from.x + (to.x - from.x) * e, from.y + Math.sin(p * Math.PI) * 0.8, from.z + (to.z - from.z) * e);
+    b.rotation.y = Math.atan2(to.z - from.z, to.x - from.x);
   }
 
   /** Mark which fighter is "you" for this viewer: follow cam + personal banners. */
@@ -326,7 +366,7 @@ export class GameWorld {
             // Explode and disappear: big burst at the fighter, rig gone instantly.
             this.effects.ko(e.rig.root.position.add(new Vector3(0, 1, 0)));
             this.effects.confetti(e.rig.root.position.add(new Vector3(0, 1.5, 0)), false);
-            e.koLaunched = false;
+            e.koLaunched = true; // hidden latch — frame loop skips this rig now
             e.rig.setVisibility(0);
           }
           this.elimOrder.push(ev.record.playerId);
@@ -336,7 +376,11 @@ export class GameWorld {
           audio.play("elimination");
           audio.play("partyBoom");
           this.camShake = Math.max(this.camShake, shakeAmount(0.35));
-          const isFocusDeath = ev.record.playerId === (this.myId ?? this.focusId);
+          // "Your" fighter is whichever one you play OR follow — the roster
+          // chips set specFollowId, the initial pick sets focusId; either way
+          // that death gets the full-screen blood treatment.
+          const watchedId = this.myId ?? (this.specCam === "follow" ? this.specFollowId : null) ?? this.focusId;
+          const isFocusDeath = ev.record.playerId === watchedId;
           this.notice({ kind: "splat", big: isFocusDeath });
           this.notice({ kind: "koWord", word: KO_WORDS[Math.floor(Math.random() * KO_WORDS.length)] ?? "BODIED!" });
           // Kill cam: the director cuts to the scene of the crime.
@@ -345,7 +389,7 @@ export class GameWorld {
             this.killCamUntil = this.t + 2.3;
             this.directorCut = true;
           }
-          if (ev.record.playerId === this.focusId) {
+          if (ev.record.playerId === watchedId && !this.myId) {
             this.notice({ kind: "focusOut", pick: 12 - this.elimOrder.indexOf(ev.record.playerId) });
             // Give the personal banner a beat, then hand over to the director.
             const deadId = ev.record.playerId;
@@ -471,6 +515,7 @@ export class GameWorld {
     const dt = Math.min(0.1, this.gs.engine.getDeltaTime() / 1000);
     this.t += dt;
     this.arena.update(dt);
+    this.updateIntroFlyby();
     this.effects.update(dt);
 
     const snapB = this.snapB;
@@ -488,6 +533,17 @@ export class GameWorld {
       const b = e.next;
       if (!a || !b) continue;
       const isMe = id === this.myId;
+
+      // Dead fighters exploded at the elimination event: hide once and stop
+      // animating entirely — no more tumbling ghosts, no spinning hats.
+      if (b.eliminated) {
+        if (!e.koLaunched) {
+          e.koLaunched = true;
+          e.rig.setVisibility(0);
+        }
+        continue;
+      }
+      e.koLaunched = false;
       const lerp = (x: number, y: number): number => x + (y - x) * Math.min(1, alpha);
       const tx = lerp(a.x, b.x);
       const ty = lerp(a.y, b.y);
@@ -541,9 +597,11 @@ export class GameWorld {
       e.rig.setHeadScale(headScale);
       e.rig.setBodyScale(bodyScale);
       const invisible = b.powerups.includes("invisibility");
-      e.rig.setVisibility(b.eliminated ? (e.koLaunched ? 1 : 0) : invisible ? (isMe ? 0.35 : 0.06) : 1);
-
-      // Eliminated fighters exploded at the elimination event — stay hidden.
+      const vis = invisible ? (isMe ? 0.35 : 0.06) : 1;
+      if (vis !== e.lastVis) {
+        e.lastVis = vis;
+        e.rig.setVisibility(vis);
+      }
 
       e.rig.setNameplate(e.slot.name, Math.max(0, b.hp) / (this.latestSnap ? Math.max(1, maxHpOf(this.latestSnap, b)) : 100), e.slot.status === "ai" || e.slot.connStatus === "ai-takeover");
     }
@@ -858,6 +916,7 @@ export class GameWorld {
 const KO_WORDS = [
   "BODIED!", "YEETED!", "WAIVED!", "AUTO-DRAFTED!", "SENT HOME!", "COOKED!",
   "BENCHED!", "DROPPED!", "OBLITERATED!", "GG NO RE!", "TO THE SHADOW REALM!", "DELETED!",
+  "SACKED!", "FUMBLED!", "BLINDSIDED!", "TURNOVER!", "INTERCEPTED!", "ROUGHING THE LOSER!",
 ];
 
 function lerpAngle(a: number, b: number, f: number): number {

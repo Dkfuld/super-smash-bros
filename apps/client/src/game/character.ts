@@ -984,8 +984,10 @@ export function createCharacter(
       }
     },
     setVisibility: (v) => {
-      for (const m of meshes) m.visibility = v;
-      face.visibility = v;
+      // Traverse the whole rig: kit geometry, hair, accessories, the rainbow
+      // hat, and the held weapon are all children — hiding only the base-body
+      // meshes left ghost parts tumbling after elimination.
+      for (const m of root.getChildMeshes(false)) (m as Mesh).visibility = v;
       plate.visibility = v < 0.5 ? 0 : 1;
     },
     setHeadScale: (s) => {

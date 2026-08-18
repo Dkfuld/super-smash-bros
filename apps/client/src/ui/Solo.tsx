@@ -13,8 +13,10 @@ import { connection } from "../net/connection";
 import { FIGHTER_KITS, KIT_INFO } from "../game/character";
 import { copyText, isEmbedded } from "./clipboard";
 import { GameView } from "./GameView";
+import { IntroOverlay } from "./IntroOverlay";
 import { ResultsScreen } from "./Results";
 import { SettingsPanel } from "./SettingsPanel";
+import type { GameWorld } from "../game/world";
 
 /**
  * Solo Draft Simulator — the whole battle royale runs *in this browser*, no
@@ -75,15 +77,27 @@ function paceSettings(pace: "quick" | "full"): MatchSettings {
 export function Solo({ blob }: { blob: string | null }): JSX.Element {
   const fromLink = blob ? decodeSoloConfig(blob) : null;
   const [cfg, setCfg] = useState<SoloConfig | null>(fromLink);
-  const [cameFromLink] = useState(fromLink !== null);
+  const [cameFromLink, setCameFromLink] = useState(fromLink !== null);
   const [invalidLink] = useState(blob !== null && fromLink === null);
 
   if (!cfg) {
     return <SoloSetup onStart={setCfg} invalidLink={invalidLink} />;
   }
   // Fresh setups pass through the share gate; shared links auto-play so the
-  // whole league just taps and watches.
-  return <SoloMatch cfg={cfg} autoStart={cameFromLink} onExit={() => setCfg(null)} />;
+  // whole league just taps and watches. A rematch mints a new seed, so it goes
+  // back through the gate — the new link is a new match to blast to the chat.
+  return (
+    <SoloMatch
+      key={cfg.seed}
+      cfg={cfg}
+      autoStart={cameFromLink}
+      onExit={() => setCfg(null)}
+      onRematch={(next) => {
+        setCameFromLink(false);
+        setCfg(next);
+      }}
+    />
+  );
 }
 
 function SoloSetup({ onStart, invalidLink }: { onStart: (c: SoloConfig) => void; invalidLink: boolean }): JSX.Element {
@@ -226,7 +240,7 @@ function SoloSetup({ onStart, invalidLink }: { onStart: (c: SoloConfig) => void;
   );
 }
 
-function SoloMatch({ cfg, autoStart, onExit }: { cfg: SoloConfig; autoStart: boolean; onExit: () => void }): JSX.Element {
+function SoloMatch({ cfg, autoStart, onExit, onRematch }: { cfg: SoloConfig; autoStart: boolean; onExit: () => void; onRematch: (next: SoloConfig) => void }): JSX.Element {
   const [participants] = useState<ParticipantSlot[]>(() =>
     cfg.names.map((name, i) => ({
       slotIndex: i,
@@ -244,9 +258,11 @@ function SoloMatch({ cfg, autoStart, onExit }: { cfg: SoloConfig; autoStart: boo
   const [copied, setCopied] = useState(false);
   const [gateDone, setGateDone] = useState(autoStart);
   const [started, setStarted] = useState(false);
+  const [introDone, setIntroDone] = useState(false);
   const [focus, setFocus] = useState<string | null>(null);
   const [speed, setSpeed] = useState(0.8);
   const matchRef = useRef<Match | null>(null);
+  const worldRef = useRef<GameWorld | null>(null);
 
   // Embedded viewers can't carry URL params, so share the raw match code there;
   // normal hosting shares a click-to-open link.
@@ -298,7 +314,9 @@ function SoloMatch({ cfg, autoStart, onExit }: { cfg: SoloConfig; autoStart: boo
   // wall-clock tick rate keeps every phone on the identical match — it just
   // makes the show easier to follow. 0.8× is the broadcast default.
   useEffect(() => {
-    if (!started) return;
+    // The sim does not tick until the intro show finishes — wall-clock delay
+    // never changes outcomes (ticks are what advance the deterministic state).
+    if (!started || !introDone) return;
     // Local loopback: GameView's world registers its snapshot/event handlers on
     // the connection singleton; we feed it directly from the in-browser sim.
     let tickCount = 0;
@@ -314,7 +332,7 @@ function SoloMatch({ cfg, autoStart, onExit }: { cfg: SoloConfig; autoStart: boo
       }
     }, SIM.TICK_MS / speed);
     return () => clearInterval(timer);
-  }, [started, speed]);
+  }, [started, introDone, speed]);
 
   // Share gate: lock the match in and blast the link to the league first.
   if (!gateDone) {
@@ -382,12 +400,24 @@ function SoloMatch({ cfg, autoStart, onExit }: { cfg: SoloConfig; autoStart: boo
     return (
       <>
         <ResultsScreen results={results} isHost={false} />
-        <div className="row" style={{ position: "fixed", bottom: "0.6rem", right: "0.6rem", zIndex: 300 }}>
+        <div className="row results-actions">
+          <button
+            className="btn small gold"
+            onClick={() => {
+              // Same league, same fighters — brand-new fate. New seed = new
+              // link = completely different match for everyone who gets it.
+              const seed = (crypto.getRandomValues(new Uint32Array(1))[0] ?? Date.now()) >>> 0;
+              audio.play("ready");
+              onRematch({ ...cfg, seed });
+            }}
+          >
+            🎲 RUN IT BACK — new outcome
+          </button>
           <button className="btn small secondary" onClick={() => doShare(setCopied)}>
-            {copied ? "✓ Copied" : isEmbedded() ? "🔗 Copy match code" : "🔗 Share this exact match"}
+            {copied ? "✓ Copied" : isEmbedded() ? "🔗 Copy match code" : "🔗 Share this match"}
           </button>
           <button className="btn small secondary" onClick={onExit}>
-            🎲 New simulation
+            ✏️ Edit league
           </button>
         </div>
       </>
@@ -402,28 +432,42 @@ function SoloMatch({ cfg, autoStart, onExit }: { cfg: SoloConfig; autoStart: boo
         spectatorUi
         initialFocusId={focus}
         kits={cfg.kits.map((k) => FIGHTER_KITS[k])}
+        onWorld={(w) => {
+          worldRef.current = w;
+        }}
       />
+      {!introDone && (
+        <IntroOverlay
+          league={cfg.league}
+          loserName={cfg.loser >= 0 ? cfg.names[cfg.loser] ?? "" : ""}
+          getWorld={() => worldRef.current}
+          onDone={() => {
+            // Collapse the sim's own built-in intro phase so the countdown
+            // starts the moment our show ends.
+            matchRef.current?.hostSkipIntro();
+            setIntroDone(true);
+          }}
+        />
+      )}
       <SettingsPanel />
-      <div className="row" style={{ position: "fixed", top: "max(0.5rem, env(safe-area-inset-top))", left: "max(0.5rem, env(safe-area-inset-left))", zIndex: 300 }}>
+      <div className="row top-actions" style={{ position: "fixed", top: "max(0.5rem, env(safe-area-inset-top))", left: "max(0.5rem, env(safe-area-inset-left))", zIndex: 300 }}>
         <button className="btn small secondary" onClick={() => doShare(setCopied)}>
-          {copied ? "✓ Copied" : "🔗 Share"}
+          {copied ? "✓" : "🔗"}
+          <span className="lbl">{copied ? " Copied" : " Share"}</span>
         </button>
-        <button className="btn small secondary" onClick={() => matchRef.current?.hostSkipIntro()}>
+        <button className="btn small secondary" title="Skip intro" onClick={() => matchRef.current?.hostSkipIntro()}>
           ⏭
         </button>
-        {([["🐢", 0.5], ["▶", 0.8], ["⏩", 1]] as const).map(([icon, s]) => (
-          <button
-            key={s}
-            className={`btn small ${speed === s ? "gold" : "secondary"}`}
-            title={`${s}× speed`}
-            onClick={() => {
-              audio.play("click");
-              setSpeed(s);
-            }}
-          >
-            {icon}
-          </button>
-        ))}
+        <button
+          className="btn small secondary"
+          title="Playback speed"
+          onClick={() => {
+            audio.play("click");
+            setSpeed(speed === 0.5 ? 0.8 : speed === 0.8 ? 1 : 0.5);
+          }}
+        >
+          {speed === 0.5 ? "🐢 0.5×" : speed === 0.8 ? "▶ 0.8×" : "⏩ 1×"}
+        </button>
       </div>
       {results && !showResults && (
         <button
