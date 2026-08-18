@@ -153,7 +153,8 @@ export class GameWorld {
     this.camera = new FreeCamera("cam", new Vector3(0, 26, -34), scene);
     this.camera.setTarget(new Vector3(0, 0, 0));
     this.camera.maxZ = 160;
-    this.camera.fov = 0.85;
+    // Spectators get a wider lens — context beats intensity when watching.
+    this.camera.fov = myId ? 0.85 : 1.02;
 
     // Build all 12 fighters up front.
     for (const slot of participants) {
@@ -340,7 +341,7 @@ export class GameWorld {
           // Kill cam: the director cuts to the scene of the crime.
           if (e) {
             this.killCamPos = e.rig.root.position.clone();
-            this.killCamUntil = this.t + 1.7;
+            this.killCamUntil = this.t + 2.3;
             this.directorCut = true;
           }
           if (ev.record.playerId === this.focusId) {
@@ -651,10 +652,23 @@ export class GameWorld {
     } else {
       // Spectator modes
       switch (this.specCam) {
-        case "overhead":
-          target = new Vector3(0, 0, 0);
-          camPos = new Vector3(0, 44, -6);
+        case "overhead": {
+          // Tactical view: auto-zoom to fit every living fighter.
+          const alive = [...this.fighters.values()].filter((f) => f.next && !f.next.eliminated);
+          if (alive.length > 0) {
+            const c = alive
+              .reduce((acc, f) => acc.addInPlace(f.rig.root.position), new Vector3(0, 0, 0))
+              .scaleInPlace(1 / alive.length);
+            let r = 8;
+            for (const f of alive) r = Math.max(r, Vector3.Distance(f.rig.root.position, c));
+            target = new Vector3(c.x, 0, c.z);
+            camPos = new Vector3(c.x, Math.min(48, 16 + r * 2.1), c.z - 5);
+          } else {
+            target = new Vector3(0, 0, 0);
+            camPos = new Vector3(0, 44, -6);
+          }
           break;
+        }
         case "arena":
           target = new Vector3(0, 1, 0);
           camPos = new Vector3(Math.sin(this.t * 0.1) * 34, 20, Math.cos(this.t * 0.1) * 34);
@@ -699,7 +713,7 @@ export class GameWorld {
             target = kp.add(new Vector3(0, 1.2, 0));
             const flatK = new Vector3(kp.x, 0, kp.z);
             const outK = flatK.length() > 2 ? flatK.normalize() : new Vector3(0, 0, 1);
-            camPos = kp.subtract(outK.scale(6)).add(new Vector3(0, 4.2, 0));
+            camPos = kp.subtract(outK.scale(8)).add(new Vector3(0, 5, 0));
             if (this.directorCut) {
               this.directorCut = false;
               this.camera.position.copyFrom(camPos);
@@ -712,7 +726,7 @@ export class GameWorld {
           // between subjects instead of drifting across the whole arena.
           const cur = this.directorTarget ? this.fighters.get(this.directorTarget) : null;
           if (this.t > this.directorSwitchAt || !cur || !cur.next || cur.next.eliminated) {
-            this.directorSwitchAt = this.t + 6;
+            this.directorSwitchAt = this.t + 9; // longer, calmer shots
             const candidates = [...this.fighters.values()].filter((f) => f.next && !f.next.eliminated);
             candidates.sort((a, b) => scoreInterest(b, this.hatPlayerId) - scoreInterest(a, this.hatPlayerId));
             const next = candidates[0]?.slot.id ?? null;
@@ -736,12 +750,12 @@ export class GameWorld {
             const mid = mate ? Vector3.Lerp(fpos, mate, 0.4) : fpos.clone();
             target = mid.add(new Vector3(0, 1.3, 0));
             const sep = mate ? md : 7;
-            const dist = Math.min(12, 5.5 + sep * 0.7);
+            const dist = Math.min(16, 8 + sep * 0.8); // wider framing: show the room, not just the punch
             // Shoot from between the action and the arena center, looking
             // outward — keeps the crowd wall as backdrop and never clips it.
             const flat = new Vector3(mid.x, 0, mid.z);
             const outward = flat.length() > 2 ? flat.normalize() : new Vector3(Math.sin(this.t * 0.1), 0, Math.cos(this.t * 0.1));
-            const perp = new Vector3(-outward.z, 0, outward.x).scaleInPlace(Math.sin(this.t * 0.22) * 0.45);
+            const perp = new Vector3(-outward.z, 0, outward.x).scaleInPlace(Math.sin(this.t * 0.15) * 0.25);
             camPos = mid
               .subtract(outward.scale(dist * 0.85))
               .add(perp.scale(dist))

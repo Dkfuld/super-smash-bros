@@ -245,6 +245,7 @@ function SoloMatch({ cfg, autoStart, onExit }: { cfg: SoloConfig; autoStart: boo
   const [gateDone, setGateDone] = useState(autoStart);
   const [started, setStarted] = useState(false);
   const [focus, setFocus] = useState<string | null>(null);
+  const [speed, setSpeed] = useState(0.8);
   const matchRef = useRef<Match | null>(null);
 
   // Embedded viewers can't carry URL params, so share the raw match code there;
@@ -284,12 +285,26 @@ function SoloMatch({ cfg, autoStart, onExit }: { cfg: SoloConfig; autoStart: boo
       },
     });
     matchRef.current = match;
+    audio.setMusic("arena");
+    return () => {
+      matchRef.current = null;
+      audio.setMusic("none");
+    };
+    // The match must never restart mid-run: cfg is immutable for this mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [started]);
 
+  // Playback pacing: outcomes are tick-based and deterministic, so slowing the
+  // wall-clock tick rate keeps every phone on the identical match — it just
+  // makes the show easier to follow. 0.8× is the broadcast default.
+  useEffect(() => {
+    if (!started) return;
     // Local loopback: GameView's world registers its snapshot/event handlers on
     // the connection singleton; we feed it directly from the in-browser sim.
     let tickCount = 0;
     const timer = window.setInterval(() => {
-      if (!matchRef.current) return;
+      const match = matchRef.current;
+      if (!match) return;
       match.tick();
       tickCount++;
       if (tickCount % SIM.SNAPSHOT_EVERY_N_TICKS === 0) {
@@ -297,20 +312,9 @@ function SoloMatch({ cfg, autoStart, onExit }: { cfg: SoloConfig; autoStart: boo
         if (events.length > 0) connection.onEvents?.(events);
         connection.onSnapshot?.(match.buildSnapshot());
       }
-      if (match.phase === "victory" && tickCount % 300 === 0) {
-        // keep a light snapshot cadence during the victory scene
-      }
-    }, SIM.TICK_MS);
-
-    audio.setMusic("arena");
-    return () => {
-      clearInterval(timer);
-      matchRef.current = null;
-      audio.setMusic("none");
-    };
-    // The match must never restart mid-run: cfg is immutable for this mount.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [started]);
+    }, SIM.TICK_MS / speed);
+    return () => clearInterval(timer);
+  }, [started, speed]);
 
   // Share gate: lock the match in and blast the link to the league first.
   if (!gateDone) {
@@ -407,6 +411,19 @@ function SoloMatch({ cfg, autoStart, onExit }: { cfg: SoloConfig; autoStart: boo
         <button className="btn small secondary" onClick={() => matchRef.current?.hostSkipIntro()}>
           ⏭
         </button>
+        {([["🐢", 0.5], ["▶", 0.8], ["⏩", 1]] as const).map(([icon, s]) => (
+          <button
+            key={s}
+            className={`btn small ${speed === s ? "gold" : "secondary"}`}
+            title={`${s}× speed`}
+            onClick={() => {
+              audio.play("click");
+              setSpeed(s);
+            }}
+          >
+            {icon}
+          </button>
+        ))}
       </div>
       {results && !showResults && (
         <button
