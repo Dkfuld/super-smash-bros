@@ -22,6 +22,12 @@ export interface ArenaHandles {
   setZoneRadius(r: number): void;
   setTrapDoorOpen(id: number, open: boolean): void;
   shadowCasters: Mesh[];
+  /** The SMASH AIR blimp, for scripted intro flybys. */
+  blimp: TransformNode;
+  /** false = the arena's idle orbit stops driving the blimp (caller owns it). */
+  setBlimpAuto(auto: boolean): void;
+  /** Show (or hide with null) a towed banner behind the blimp. */
+  setBlimpBanner(text: string | null): void;
 }
 
 function mat(scene: Scene, name: string, hex: string, opts: { emissive?: number; alpha?: number; unlit?: boolean } = {}): StandardMaterial {
@@ -378,8 +384,11 @@ export function buildArena(scene: Scene, layout: ArenaLayout, q: QualityParams):
   }
 
   // ---------- league blimp circling the rafters ----------
+  let blimpAuto = true;
+  let towBanner: Mesh | null = null;
+  let towTex: DynamicTexture | null = null;
+  const blimpRoot = new TransformNode("blimp", scene);
   {
-    const blimpRoot = new TransformNode("blimp", scene);
     blimpRoot.parent = root;
     blimpRoot.position.set(23, 12.2, 0);
     const body = MeshBuilder.CreateSphere("blimpBody", { diameterX: 5.2, diameterY: 1.7, diameterZ: 1.7 }, scene);
@@ -410,12 +419,154 @@ export function buildArena(scene: Scene, layout: ArenaLayout, q: QualityParams):
       ad.rotation.y = s > 0 ? 0 : Math.PI;
       ad.parent = blimpRoot;
     }
+    // Towed roast banner (hidden until the intro asks for it)
+    towTex = new DynamicTexture("towBannerTex", { width: 1024, height: 128 }, scene, true);
+    const towMat = new StandardMaterial("towBannerMat", scene);
+    towMat.emissiveTexture = towTex;
+    towMat.diffuseColor = Color3.Black();
+    towMat.disableLighting = true;
+    towMat.backFaceCulling = false;
+    towBanner = MeshBuilder.CreatePlane("towBanner", { width: 7.5, height: 0.95, sideOrientation: Mesh.DOUBLESIDE }, scene);
+    towBanner.material = towMat;
+    towBanner.position.set(-6.6, -0.2, 0);
+    towBanner.parent = blimpRoot;
+    towBanner.setEnabled(false);
     if (q.animatedProps) {
       animated.push((dt, tt) => {
+        if (!blimpAuto) return;
         const a = tt * 0.07;
         blimpRoot.position.set(Math.cos(a) * 23, 12.2 + Math.sin(tt * 0.5) * 0.3, Math.sin(a) * 23);
         blimpRoot.rotation.y = a + Math.PI / 2;
       });
+    }
+  }
+
+  // ---------- 360° LED ribbon board with league "sponsors" ----------
+  {
+    const ADS = "  BIG SLICE PIZZA  ★  DRAFT JUICE ZERO  ★  UNCLE RICO'S DEEP BALL ACADEMY  ★  WAIVER WIRE INSURANCE  ★  GRIDIRON GRAVY  ★  KEVIN'S KICKER EMPORIUM  ★  THE COMMISH LAW FIRM: TRUST US  ★  SMASH DOME SEASON TICKETS (SOLD OUT)";
+    const ribbonTex = new DynamicTexture("ribbonTex", { width: 2048, height: 64 }, scene, true);
+    const c = ribbonTex.getContext() as unknown as CanvasRenderingContext2D;
+    c.fillStyle = "#0b0620";
+    c.fillRect(0, 0, 2048, 64);
+    c.fillStyle = "#ffd23f";
+    c.font = "bold 34px system-ui, sans-serif";
+    c.textBaseline = "middle";
+    c.fillText(ADS, 8, 34);
+    ribbonTex.update();
+    ribbonTex.uScale = 2;
+    const ribbonMat = new StandardMaterial("ribbonMat", scene);
+    ribbonMat.emissiveTexture = ribbonTex;
+    ribbonMat.diffuseColor = Color3.Black();
+    ribbonMat.disableLighting = true;
+    ribbonMat.backFaceCulling = false;
+    const ribbon = MeshBuilder.CreateCylinder("adRibbon", { diameter: 75, height: 1.15, tessellation: 48, cap: Mesh.NO_CAP }, scene);
+    ribbon.material = ribbonMat;
+    ribbon.position.y = 2.35;
+    ribbon.parent = root;
+    ribbon.isPickable = false;
+    if (q.animatedProps) animated.push((dt, tt) => (ribbonTex.uOffset = tt * 0.018));
+  }
+
+  // ---------- stadium light masts on the diagonals ----------
+  {
+    const bankTex = new DynamicTexture("lightBankTex", { width: 128, height: 64 }, scene, true);
+    const c = bankTex.getContext() as unknown as CanvasRenderingContext2D;
+    c.fillStyle = "#20242e";
+    c.fillRect(0, 0, 128, 64);
+    for (let r = 0; r < 2; r++) {
+      for (let i = 0; i < 4; i++) {
+        c.fillStyle = "#fff6d0";
+        c.beginPath();
+        c.arc(20 + i * 30, 18 + r * 28, 10, 0, Math.PI * 2);
+        c.fill();
+      }
+    }
+    bankTex.update();
+    const bankMat = new StandardMaterial("lightBankMat", scene);
+    bankMat.emissiveTexture = bankTex;
+    bankMat.diffuseColor = Color3.Black();
+    bankMat.disableLighting = true;
+    for (let i = 0; i < 4; i++) {
+      const a = Math.PI / 4 + (i * Math.PI) / 2;
+      const mx = Math.cos(a) * 33.5, mz = Math.sin(a) * 33.5;
+      const pole = MeshBuilder.CreateCylinder("lightMast", { diameterTop: 0.32, diameterBottom: 0.55, height: 17 }, scene);
+      pole.material = mat(scene, "lightMastMat", "#5b636e");
+      pole.position.set(mx, 8.5, mz);
+      pole.parent = root;
+      staticMeshes.push(pole);
+      const bank = MeshBuilder.CreatePlane("lightBank", { width: 2.7, height: 1.3 }, scene);
+      bank.material = bankMat;
+      bank.position.set(mx * 0.965, 15.9, mz * 0.965);
+      // face the arena center, tipped down at the field
+      bank.rotation.y = Math.atan2(-mx, -mz) + Math.PI;
+      bank.rotation.x = 0.42;
+      bank.parent = root;
+    }
+  }
+
+  // ---------- inflatable helmet team tunnel (south-west arc) ----------
+  {
+    const tunnelDir = Math.atan2(-24, -24);
+    const tx = -24.6, tz = -24.6;
+    const shellMat = mat(scene, "tunnelShell", "#b3122e", { emissive: 0.12 });
+    const shell = MeshBuilder.CreateSphere("tunnelHelmet", { diameter: 7.4, slice: 0.62, segments: 12 }, scene);
+    shell.material = shellMat;
+    shell.position.set(tx, 0, tz);
+    shell.parent = root;
+    shadowCasters.push(shell);
+    staticMeshes.push(shell);
+    // dark tunnel mouth facing the field
+    const mouth = MeshBuilder.CreateDisc("tunnelMouth", { radius: 1.55, tessellation: 24 }, scene);
+    mouth.material = mat(scene, "tunnelMouthMat", "#05030c", { unlit: true });
+    const mdx = Math.cos(tunnelDir + Math.PI), mdz = Math.sin(tunnelDir + Math.PI);
+    mouth.position.set(tx + mdx * 3.35, 1.55, tz + mdz * 3.35);
+    mouth.rotation.y = Math.atan2(mdx, mdz);
+    mouth.parent = root;
+    // facemask bars over the mouth
+    const barMat = mat(scene, "tunnelBar", "#e8e4da");
+    for (let i = 0; i < 3; i++) {
+      const bar = MeshBuilder.CreateCylinder("tunnelFacemask", { diameter: 0.16, height: 4.2 }, scene);
+      bar.material = barMat;
+      bar.rotation.z = Math.PI / 2;
+      bar.rotation.y = Math.atan2(mdx, mdz) + Math.PI / 2;
+      bar.position.set(tx + mdx * 3.75, 1.0 + i * 0.75, tz + mdz * 3.75);
+      bar.parent = root;
+      staticMeshes.push(bar);
+    }
+    // stripe over the crown
+    const stripe = MeshBuilder.CreateTorus("tunnelStripe", { diameter: 7.0, thickness: 0.35, tessellation: 32 }, scene);
+    stripe.material = mat(scene, "tunnelStripeMat", "#ffd23f", { emissive: 0.2 });
+    stripe.rotation.z = Math.PI / 2;
+    stripe.rotation.y = tunnelDir;
+    stripe.position.set(tx, 0.4, tz);
+    stripe.parent = root;
+  }
+
+  // ---------- nets behind both goal posts ----------
+  {
+    const netTex = new DynamicTexture("netTex", { width: 128, height: 128 }, scene, true);
+    const c = netTex.getContext() as unknown as CanvasRenderingContext2D;
+    c.clearRect(0, 0, 128, 128);
+    c.strokeStyle = "rgba(240,240,255,0.55)";
+    c.lineWidth = 2;
+    for (let i = 0; i <= 128; i += 12) {
+      c.beginPath(); c.moveTo(i, 0); c.lineTo(i, 128); c.stroke();
+      c.beginPath(); c.moveTo(0, i); c.lineTo(128, i); c.stroke();
+    }
+    netTex.update();
+    netTex.hasAlpha = true;
+    const netMat = new StandardMaterial("netMat", scene);
+    netMat.diffuseTexture = netTex;
+    netMat.opacityTexture = netTex;
+    netMat.emissiveColor = new Color3(0.5, 0.5, 0.6);
+    netMat.backFaceCulling = false;
+    for (const sx of [-1, 1]) {
+      const net = MeshBuilder.CreatePlane("goalNet", { width: 7.5, height: 5 }, scene);
+      net.material = netMat;
+      net.position.set(sx * 33.4, 6.6, 0);
+      net.rotation.y = sx > 0 ? -Math.PI / 2 : Math.PI / 2;
+      net.parent = root;
+      net.isPickable = false;
     }
   }
 
@@ -1105,6 +1256,30 @@ export function buildArena(scene: Scene, layout: ArenaLayout, q: QualityParams):
       if (door) {
         door.setEnabled(!open);
       }
+    },
+    blimp: blimpRoot,
+    setBlimpAuto: (auto) => {
+      blimpAuto = auto;
+    },
+    setBlimpBanner: (text) => {
+      if (!towBanner || !towTex) return;
+      if (text === null) {
+        towBanner.setEnabled(false);
+        return;
+      }
+      const c = towTex.getContext() as unknown as CanvasRenderingContext2D;
+      c.fillStyle = "#f4ead8";
+      c.fillRect(0, 0, 1024, 128);
+      c.fillStyle = "#b3122e";
+      c.fillRect(0, 0, 14, 128);
+      c.fillRect(1010, 0, 14, 128);
+      c.fillStyle = "#1d1236";
+      c.font = "bold 58px system-ui, sans-serif";
+      c.textAlign = "center";
+      c.textBaseline = "middle";
+      c.fillText(text, 512, 68, 960);
+      towTex.update();
+      towBanner.setEnabled(true);
     },
   };
 }
