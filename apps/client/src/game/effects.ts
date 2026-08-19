@@ -85,9 +85,22 @@ export class EffectsManager {
     this.bloodDecal(pos);
   }
 
+  /** Celebration firework: colored starburst + white flash, for the intro. */
+  firework(pos: Vector3): void {
+    const palettes: Array<[Color4, Color4]> = [
+      [new Color4(1, 0.85, 0.25, 1), new Color4(1, 0.45, 0.1, 1)],
+      [new Color4(1, 0.35, 0.55, 1), new Color4(0.8, 0.2, 1, 1)],
+      [new Color4(0.35, 0.85, 1, 1), new Color4(0.2, 0.4, 1, 1)],
+      [new Color4(0.5, 1, 0.45, 1), new Color4(0.9, 1, 0.3, 1)],
+    ];
+    const [c1, c2] = palettes[Math.floor(Math.random() * palettes.length)]!;
+    this.burst(pos, { count: 64, c1, c2, speed: 10, size: 0.34, life: 1.15, gravity: -4 });
+    this.burst(pos, { count: 18, c1: new Color4(1, 1, 1, 1), c2: new Color4(1, 1, 0.85, 1), speed: 3, size: 0.22, life: 0.5 });
+  }
+
   /** Cartoon gore: dark-red droplets (standard blend — additive turns orange). */
   bloodSpray(pos: Vector3, intensity = 1): void {
-    const count = Math.max(8, Math.round(64 * intensity * this.particleScale * (settings.flashReduction ? 0.5 : 1)));
+    const count = Math.max(8, Math.round(90 * intensity * this.particleScale * (settings.flashReduction ? 0.5 : 1)));
     const ps = new ParticleSystem("blood", count, this.scene);
     ps.particleTexture = this.flareTex;
     ps.emitter = pos.clone();
@@ -109,6 +122,31 @@ export class EffectsManager {
     ps.disposeOnStop = true;
     ps.start();
     ps.targetStopDuration = 0.05;
+    // Meaty chunks on full-strength sprays — rated-cartoon-R.
+    if (intensity >= 0.8 && !settings.flashReduction) {
+      const chunks = Math.max(6, Math.round(14 * this.particleScale));
+      const cs = new ParticleSystem("gibs", chunks, this.scene);
+      cs.particleTexture = this.flareTex;
+      cs.emitter = pos.clone();
+      cs.blendMode = ParticleSystem.BLENDMODE_STANDARD;
+      cs.color1 = new Color4(0.5, 0.02, 0.05, 1);
+      cs.color2 = new Color4(0.3, 0.01, 0.03, 1);
+      cs.colorDead = new Color4(0.2, 0, 0.02, 0);
+      cs.minSize = 0.3;
+      cs.maxSize = 0.55;
+      cs.minLifeTime = 0.4;
+      cs.maxLifeTime = 0.7;
+      cs.emitRate = 0;
+      cs.manualEmitCount = chunks;
+      cs.minEmitPower = 5;
+      cs.maxEmitPower = 13;
+      cs.direction1 = new Vector3(-1, 1, -1);
+      cs.direction2 = new Vector3(1, 3.5, 1);
+      cs.gravity = new Vector3(0, -26, 0);
+      cs.disposeOnStop = true;
+      cs.start();
+      cs.targetStopDuration = 0.05;
+    }
   }
 
   private bloodTexes: DynamicTexture[] = [];
@@ -139,7 +177,7 @@ export class EffectsManager {
       }
     }
     // cap the pool so long matches don't accumulate meshes
-    if (this.decals.length >= 10) {
+    if (this.decals.length >= 14) {
       const old = this.decals.shift();
       old?.mesh.dispose(false, true);
     }
@@ -149,12 +187,12 @@ export class EffectsManager {
     mat.useAlphaFromDiffuseTexture = true;
     mat.emissiveColor = new Color3(0.28, 0.02, 0.03); // reads in shadow too
     mat.specularColor = Color3.Black();
-    const mesh = MeshBuilder.CreateGround("bloodDecal", { width: 2.4 + Math.random() * 1.2, height: 2.4 + Math.random() * 1.2 }, this.scene);
+    const mesh = MeshBuilder.CreateGround("bloodDecal", { width: 3.0 + Math.random() * 1.6, height: 3.0 + Math.random() * 1.6 }, this.scene);
     mesh.material = mat;
     mesh.position.set(pos.x, 0.03 + this.decals.length * 0.002, pos.z);
     mesh.rotation.y = Math.random() * Math.PI * 2;
     mesh.isPickable = false;
-    this.decals.push({ mesh, mat, life: 12 });
+    this.decals.push({ mesh, mat, life: 16 });
   }
 
   explosion(pos: Vector3, kind: string): void {

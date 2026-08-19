@@ -618,6 +618,7 @@ function SoloMatch({ cfg, autoStart, onExit, onRematch }: { cfg: SoloConfig; aut
       {!introDone && (
         <IntroOverlay
           league={cfg.league}
+          names={cfg.names}
           loserName={cfg.loser >= 0 ? cfg.names[cfg.loser] ?? "" : ""}
           loserId={cfg.loser >= 0 ? `p${cfg.loser}` : null}
           getWorld={() => worldRef.current}

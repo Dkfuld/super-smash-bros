@@ -267,6 +267,11 @@ export class GameWorld {
         `${alive.length} managers still standing. The group chat has gone silent.`,
         `Reminder: the winner of this gets the first pick AND a full year of gloating rights.`,
         `Somewhere, a real football scout is watching this and weeping.`,
+        `${name(bystander.id)} is getting absolutely dogwalked and honestly? Deserved.`,
+        `Everything you're seeing is legal, because it's fantasy football.`,
+        `That last exchange was personal. This whole league is personal.`,
+        `The Dome's insurance premiums must be unholy.`,
+        `${name(bystander.id)} out here throwing hands like his season depends on it. Because it does.`,
       );
     }
     const pick = lines[Math.floor(Math.random() * lines.length)];
@@ -286,6 +291,80 @@ export class GameWorld {
    */
   private entranceNextBooAt = 0;
   private entranceNextTomatoAt = 0;
+  private penance: { id: string; start: number } | null = null;
+  private penanceYippeed = false;
+  private nextFireworkAt = 0.6;
+
+  /** Opening-ceremony fireworks over the bowl while the camera dives in. */
+  private updateFireworks(): void {
+    const phase = this.latestSnap?.phase ?? "lobby";
+    if (this.t > 12 || (phase !== "lobby" && phase !== "countdown" && phase !== "intro")) return;
+    if (this.t < this.nextFireworkAt) return;
+    this.nextFireworkAt = this.t + 0.45 + Math.random() * 0.5;
+    const a = Math.random() * Math.PI * 2;
+    const r = 12 + Math.random() * 18;
+    this.effects.firework(new Vector3(Math.cos(a) * r, 15 + Math.random() * 7, Math.sin(a) * r));
+    if (Math.random() < 0.5) audio.play("partyBoom");
+  }
+
+  /**
+   * The Penance: after the walk of shame, the troll performs 5 air squats,
+   * one triumphant-delusional high jump with a propeller flick, and a Yippee.
+   */
+  startLoserPenance(loserId: string): void {
+    if (!this.fighters.get(loserId)) return;
+    this.penance = { id: loserId, start: this.t };
+    this.penanceYippeed = false;
+  }
+
+  private updateLoserPenance(dt: number): void {
+    if (!this.penance) return;
+    const e = this.fighters.get(this.penance.id);
+    const u = this.t - this.penance.start;
+    if (!e || u >= 6.4) {
+      if (e) {
+        e.rig.visual.scaling.y = 1;
+        e.rig.visual.position.y = 0;
+        e.rig.root.position.y = 0;
+      }
+      this.penance = null;
+      audio.sadTrombone(); // the walk + penance ends on a womp womp
+      return;
+    }
+    // face the camera-ish (out toward midfield)
+    e.rig.root.rotation.y = Math.atan2(8.5 - e.rig.root.position.x, 8.5 - e.rig.root.position.z);
+    if (u < 4.0) {
+      // 5 squats @ 0.8s: deep knee bends via visual squash
+      const s = (u % 0.8) / 0.8;
+      const squat = 0.34 * Math.sin(Math.PI * s);
+      e.rig.visual.scaling.y = 1 - squat;
+      e.rig.visual.position.y = -squat * 0.55;
+    } else if (u < 5.4) {
+      // the high jump: parabola with a furious propeller flick at the top
+      e.rig.visual.scaling.y = 1;
+      e.rig.visual.position.y = 0;
+      const jt = (u - 4.0) / 1.4;
+      e.rig.root.position.y = Math.max(0, 4 * jt * (1 - jt)) * 2.2;
+      if (e.rig.hat) e.rig.hat.node.rotation.y += dt * 26; // flick the fan
+      if (!this.penanceYippeed && jt > 0.4) {
+        this.penanceYippeed = true;
+        audio.speak("Yippee!", "yippee", "excited");
+        this.notice({ kind: "yippee", playerName: e.slot.name, variant: "excited" });
+        this.effects.confetti(e.rig.root.position.add(new Vector3(0, 2, 0)), true);
+      }
+    } else {
+      e.rig.root.position.y = 0;
+      if (e.rig.hat) e.rig.hat.node.rotation.y *= 0.9;
+    }
+    // the league keeps laughing through the whole ritual
+    const lp = e.rig.root.position;
+    for (const [id, o] of this.fighters) {
+      if (id === this.penance.id) continue;
+      const d = o.rig.root.position;
+      o.rig.root.rotation.y = Math.atan2(lp.x - d.x, lp.z - d.z);
+      o.rig.root.position.y = Math.abs(Math.sin(this.t * 6 + d.x)) * 0.14;
+    }
+  }
 
   startLoserEntrance(loserId: string, durationSec = 9): void {
     const e = this.fighters.get(loserId);
@@ -301,7 +380,7 @@ export class GameWorld {
     const p = (this.t - this.entrance.start) / this.entrance.dur;
     const e = this.fighters.get(this.entrance.id);
     if (!e || p >= 1) {
-      if (this.entrance) audio.sadTrombone(); // cap the walk with a womp womp
+      // (the sad trombone now caps the penance ritual instead)
       this.entrance = null;
       return;
     }
@@ -501,8 +580,15 @@ export class GameWorld {
             const t = this.nameOf(ev.target);
             const by = ev.by ? this.nameOf(ev.by) : null;
             const opts = by
-              ? [`DOWN GOES ${t.toUpperCase()}! ${by} with the huge shot!`, `${by} just folded ${t} like a lawn chair!`, `${t} got sent to the shadow realm by ${by}!`]
-              : [`${t} just got flattened!`, `DOWN GOES ${t.toUpperCase()}!`];
+              ? [
+                  `DOWN GOES ${t.toUpperCase()}! ${by} with the huge shot!`,
+                  `${by} just folded ${t} like a lawn chair!`,
+                  `${t} got sent to the shadow realm by ${by}!`,
+                  `${by} just slapped ${t} into next season!`,
+                  `OH! ${t}'s ancestors felt that one. ${by}, you animal.`,
+                  `${by} is handing ${t} his ass, gift-wrapped, with a bow.`,
+                ]
+              : [`${t} just got flattened!`, `DOWN GOES ${t.toUpperCase()}!`, `${t} folded like a cheap tent!`];
             this.say(opts[Math.floor(Math.random() * opts.length)] ?? "", 6);
           }
           break;
@@ -671,6 +757,8 @@ export class GameWorld {
     this.arena.update(dt);
     this.updateIntroFlyby();
     this.updateLoserEntrance();
+    this.updateLoserPenance(dt);
+    this.updateFireworks();
     this.updateCommentary();
     this.effects.update(dt);
 
@@ -865,10 +953,11 @@ export class GameWorld {
         camPos = new Vector3(0, 34, -20);
       }
     } else if (phase === "lobby" || phase === "countdown") {
-      if (this.entrance) {
-        // Walk of shame cam: track the troll from a low side angle so the
-        // dunce cone, the tunnel, and the laughing league are all in frame.
-        const le = this.fighters.get(this.entrance.id);
+      const showcase = this.entrance ?? this.penance;
+      if (showcase) {
+        // Walk of shame / penance cam: track the troll from a low side angle
+        // so the dunce cone and the laughing league are all in frame.
+        const le = this.fighters.get(showcase.id);
         if (le) {
           const lp = le.rig.root.position;
           target = lp.add(new Vector3(0, 1.1, 0));
@@ -880,14 +969,25 @@ export class GameWorld {
           return;
         }
       }
-      // Opening flyover: broadcast-style sweep down from the rafters into the
-      // arena while the fighters line up. Ends right as the horn sounds.
-      const p = Math.min(1, this.t / 7);
-      const e = 1 - (1 - p) * (1 - p); // ease-out
-      const a = -0.7 + this.t * 0.2;
-      const r = 33 - 13 * e;
-      target = new Vector3(0, 1 + (1 - e) * 3, 0);
-      camPos = new Vector3(Math.sin(a) * r, 19 - 8.5 * e, Math.cos(a) * r);
+      if (this.t < 8) {
+        // Grand approach: start way above the bowl and dive in through the
+        // fireworks — stadium-reveal energy before the flyover takes over.
+        const ap = Math.min(1, this.t / 8);
+        const ae = ap * ap * (3 - 2 * ap);
+        const a = -0.9 + this.t * 0.12;
+        const r = 58 - 26 * ae; // stays inside the sky dome (radius 75)
+        target = new Vector3(0, 9 - 6 * ae, 0);
+        camPos = new Vector3(Math.sin(a) * r, 38 - 19 * ae, Math.cos(a) * r);
+      } else {
+        // Opening flyover: broadcast-style sweep down from the rafters into
+        // the arena while the fighters line up.
+        const p = Math.min(1, (this.t - 8) / 7);
+        const e = 1 - (1 - p) * (1 - p); // ease-out
+        const a = 0.06 + this.t * 0.2;
+        const r = 32 - 12 * e;
+        target = new Vector3(0, 1 + (1 - e) * 3, 0);
+        camPos = new Vector3(Math.sin(a) * r, 19 - 8.5 * e, Math.cos(a) * r);
+      }
     } else {
       // Spectator modes
       switch (this.specCam) {
@@ -1088,6 +1188,7 @@ const KO_WORDS = [
   "BODIED!", "YEETED!", "WAIVED!", "AUTO-DRAFTED!", "SENT HOME!", "COOKED!",
   "BENCHED!", "DROPPED!", "OBLITERATED!", "GG NO RE!", "TO THE SHADOW REALM!", "DELETED!",
   "SACKED!", "FUMBLED!", "BLINDSIDED!", "TURNOVER!", "INTERCEPTED!", "ROUGHING THE LOSER!",
+  "DOGWALKED!", "ASS HANDED!", "COOKED & SERVED!", "EVICTED!", "UNALIVED (FANTASY-LEGAL)!",
 ];
 
 function lerpAngle(a: number, b: number, f: number): number {
