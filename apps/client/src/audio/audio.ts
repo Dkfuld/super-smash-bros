@@ -172,8 +172,8 @@ class AudioEngine {
       // one, pitched low and taken slow.
       const v = this.pickAnnouncerVoice();
       if (v) u.voice = v;
-      u.pitch = 0.8;
-      u.rate = 0.97;
+      u.pitch = 0.72;
+      u.rate = 0.92;
     } else {
       const styles: Record<string, [number, number]> = {
         excited: [1.9, 1.4], nervous: [1.7, 1.7], exhausted: [1.2, 0.7],
@@ -263,12 +263,26 @@ class AudioEngine {
   }
 
   private announcerVoice: SpeechSynthesisVoice | null | undefined;
+  private voiceListenerArmed = false;
 
   private pickAnnouncerVoice(): SpeechSynthesisVoice | null {
     if (this.announcerVoice !== undefined) return this.announcerVoice;
+    if (!this.voiceListenerArmed) {
+      this.voiceListenerArmed = true;
+      // Voice lists load async on many browsers — re-pick when they arrive.
+      speechSynthesis.addEventListener?.("voiceschanged", () => {
+        this.announcerVoice = undefined;
+      });
+    }
     const voices = speechSynthesis.getVoices();
     if (!voices.length) return null; // list not loaded yet — try again next line
-    const prefs = [/samantha/i, /victoria/i, /serena/i, /moira/i, /tessa/i, /karen/i, /zira/i, /female/i, /google uk english female/i];
+    // Warm female voices first (iOS Samantha, macOS Moira/Karen/Tessa,
+    // Windows Aria/Jenny/Zira, Android/Chrome Google female variants).
+    const prefs = [
+      /samantha/i, /aria/i, /jenny/i, /victoria/i, /serena/i, /moira/i, /tessa/i,
+      /karen/i, /fiona/i, /zira/i, /libby/i, /sonia/i, /natasha/i, /female/i,
+      /google uk english female/i, /google us english/i,
+    ];
     for (const p of prefs) {
       const v = voices.find((x) => p.test(x.name) && x.lang.toLowerCase().startsWith("en"));
       if (v) {

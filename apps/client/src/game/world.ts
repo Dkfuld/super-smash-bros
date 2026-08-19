@@ -345,7 +345,9 @@ export class GameWorld {
       e.rig.visual.position.y = 0;
       const jt = (u - 4.0) / 1.4;
       e.rig.root.position.y = Math.max(0, 4 * jt * (1 - jt)) * 2.2;
-      if (e.rig.hat) e.rig.hat.node.rotation.y += dt * 26; // flick the fan
+      // flick the fan: spin the propeller itself, hard
+      const fan = e.rig.hat?.node.getChildTransformNodes(false).find((n) => n.name === "hatFan");
+      if (fan) fan.rotation.y += dt * 30;
       if (!this.penanceYippeed && jt > 0.4) {
         this.penanceYippeed = true;
         audio.speak("Yippee!", "yippee", "excited");
@@ -354,7 +356,6 @@ export class GameWorld {
       }
     } else {
       e.rig.root.position.y = 0;
-      if (e.rig.hat) e.rig.hat.node.rotation.y *= 0.9;
     }
     // the league keeps laughing through the whole ritual
     const lp = e.rig.root.position;
