@@ -127,6 +127,22 @@ export function HUD({ world, isPlayer }: { world: GameWorld; isPlayer: boolean }
         </div>
       )}
 
+      {!isPlayer && hud && hud.phase !== "lobby" && (() => {
+        // Always-visible health for the fighter this viewer is watching.
+        const me = hud.board.find((r) => r.isMe);
+        if (!me || me.eliminated) return null;
+        const c = me.hp > 50 ? "var(--green)" : me.hp > 25 ? "var(--gold)" : "var(--red)";
+        return (
+          <div className="focus-hp">
+            <span className="fh-name">👤 {me.name}</span>
+            <span className="fh-bar">
+              <span className="fh-fill" style={{ width: `${Math.min(100, me.hp)}%`, background: c }} />
+            </span>
+            <span className="fh-num" style={{ color: c }}>{Math.max(0, Math.round(me.hp))}</span>
+          </div>
+        );
+      })()}
+
       <div className="hud-feed">
         {feed.map((f) => (
           <div key={f.id} className="feed-item">

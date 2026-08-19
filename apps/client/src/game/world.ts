@@ -168,6 +168,7 @@ export class GameWorld {
         outline: q.tier !== "low",
       });
       if (this.gs.shadows) for (const m of rig.meshes) this.gs.shadows.addShadowCaster(m);
+      this.gs.glow?.addExcludedMesh(rig.plate); // keep name/HP plates crisp, not bloomed
       rig.setNameplate(slot.name, 1, slot.status === "ai");
       const spawn = DISASTER_DOME.spawnPoints[slot.slotIndex] ?? { x: 0, z: 0 };
       rig.root.position.set(spawn.x, 0, spawn.z);
@@ -208,6 +209,68 @@ export class GameWorld {
     // fighters without adopting them. Personal viewers adopt via setFocus.
     this.specCam = cam;
     if (followId) this.specFollowId = followId;
+  }
+
+  // ---------------- play-by-play commentary ----------------
+  // Client-side color commentary: reads the shared match state, never touches
+  // it, so the deterministic sim is unaffected. Local Math.random only varies
+  // the wording/timing of filler — the big calls come from sim events, which
+  // are identical on every phone.
+
+  private lastLineAt = -99;
+  private nextFillerAt = 12;
+
+  private say(line: string, minGap = 5): void {
+    if (this.t - this.lastLineAt < minGap) return;
+    this.lastLineAt = this.t;
+    this.nextFillerAt = this.t + 13 + Math.random() * 8;
+    audio.speak(line, "announcer");
+    this.notice({ kind: "caption", text: line, mood: "excited" });
+  }
+
+  private updateCommentary(): void {
+    const snap = this.latestSnap;
+    if (!snap || (snap.phase !== "playing" && snap.phase !== "suddenDeath")) return;
+    if (this.t < this.nextFillerAt) return;
+    const alive = snap.fighters.filter((f) => !f.eliminated);
+    if (alive.length < 2) return;
+    const name = (id: string): string => this.nameOf(id);
+    const lines: string[] = [];
+    const weakest = [...alive].sort((a, b) => a.hp - b.hp)[0];
+    if (weakest && weakest.hp < 30) {
+      lines.push(
+        `${name(weakest.id)} is held together by tape and pure denial.`,
+        `${name(weakest.id)} is one strong sneeze away from pick twelve.`,
+      );
+    }
+    const killer = [...(this.elimsBy.entries() ?? [])].sort((a, b) => b[1] - a[1])[0];
+    if (killer && killer[1] >= 2 && alive.some((f) => f.id === killer[0])) {
+      lines.push(`${name(killer[0])} has ${killer[1]} knockouts and absolutely zero remorse.`);
+    }
+    if (this.hatPlayerId && alive.some((f) => f.id === this.hatPlayerId)) {
+      lines.push(`${name(this.hatPlayerId)} is somehow still alive. Even the dunce cap looks surprised.`);
+    }
+    // Two fighters about to collide → tease the fight
+    outer: for (const a of alive) {
+      for (const b of alive) {
+        if (a.id >= b.id) continue;
+        if (Math.hypot(a.x - b.x, a.z - b.z) < 6) {
+          lines.push(`${name(a.id)} and ${name(b.id)} are about to have a conversation. A violent one.`);
+          break outer;
+        }
+      }
+    }
+    const bystander = alive[Math.floor(Math.random() * alive.length)];
+    if (bystander) {
+      lines.push(
+        `${name(bystander.id)} is fighting for draft position like rent is due.`,
+        `${alive.length} managers still standing. The group chat has gone silent.`,
+        `Reminder: the winner of this gets the first pick AND a full year of gloating rights.`,
+        `Somewhere, a real football scout is watching this and weeping.`,
+      );
+    }
+    const pick = lines[Math.floor(Math.random() * lines.length)];
+    if (pick) this.say(pick, 6);
   }
 
   // ---------------- intro flyby ----------------
@@ -402,9 +465,20 @@ export class GameWorld {
           this.fighters.get(ev.target)?.rig.flash();
           break;
         }
-        case "knockdown":
+        case "knockdown": {
           audio.play("heavyHit");
+          // Play-by-play: call the big hits (always when it's your fighter).
+          const isWatched = ev.target === (this.myId ?? this.focusId);
+          if (isWatched || Math.random() < 0.35) {
+            const t = this.nameOf(ev.target);
+            const by = ev.by ? this.nameOf(ev.by) : null;
+            const opts = by
+              ? [`DOWN GOES ${t.toUpperCase()}! ${by} with the huge shot!`, `${by} just folded ${t} like a lawn chair!`, `${t} got sent to the shadow realm by ${by}!`]
+              : [`${t} just got flattened!`, `DOWN GOES ${t.toUpperCase()}!`];
+            this.say(opts[Math.floor(Math.random() * opts.length)] ?? "", 6);
+          }
           break;
+        }
         case "elimination": {
           const e = this.fighters.get(ev.record.playerId);
           if (e) {
@@ -458,6 +532,9 @@ export class GameWorld {
           break;
         case "pickupTaken":
           if (ev.playerId === this.myId) audio.play(ev.rarity === "legendary" ? "legendary" : "pickup");
+          if (ev.rarity === "legendary") {
+            this.say(`${this.nameOf(ev.playerId)} just grabbed a LEGENDARY. Everyone run.`, 3);
+          }
           break;
         case "hazardTelegraph":
           audio.play("warning");
@@ -475,6 +552,7 @@ export class GameWorld {
         }
         case "zoneStage":
           audio.play("zoneShrink");
+          this.say(`The walls are moving in — nowhere left to hide!`, 8);
           break;
         case "yippee": {
           const name = this.nameOf(ev.playerId);
@@ -485,6 +563,9 @@ export class GameWorld {
           break;
         }
         case "announce":
+          // Sim-driven lines take priority — push local filler back.
+          this.lastLineAt = this.t;
+          this.nextFillerAt = Math.max(this.nextFillerAt, this.t + 10);
           audio.speak(ev.line, "announcer");
           this.notice({ kind: "caption", text: ev.line, mood: ev.mood });
           break;
@@ -562,6 +643,7 @@ export class GameWorld {
     this.arena.update(dt);
     this.updateIntroFlyby();
     this.updateLoserEntrance();
+    this.updateCommentary();
     this.effects.update(dt);
 
     const snapB = this.snapB;

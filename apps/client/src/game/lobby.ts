@@ -47,6 +47,7 @@ export class LobbyWorld {
     this.me.setNameplate(mySlot.name, 1, false);
     this.me.root.position.copyFrom(this.pos);
     if (this.gs.shadows) for (const m of this.me.meshes) this.gs.shadows.addShadowCaster(m);
+    this.gs.glow?.addExcludedMesh(this.me.plate);
 
     this.updateRoster(otherSlots);
 
@@ -72,6 +73,7 @@ export class LobbyWorld {
         kit: FIGHTER_KITS[slot.slotIndex % FIGHTER_KITS.length],
       });
       rig.setNameplate(slot.name, 1, slot.status === "ai");
+      this.gs.glow?.addExcludedMesh(rig.plate);
       const sp = DISASTER_DOME.spawnPoints[slot.slotIndex] ?? { x: 0, z: 0 };
       rig.root.position.set(sp.x * 0.8, 0, sp.z * 0.8);
       rig.root.rotation.y = Math.atan2(-sp.x, -sp.z);

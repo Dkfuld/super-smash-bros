@@ -29,6 +29,8 @@ export interface CharacterRig {
   setAnim(anim: AnimState): void;
   update(dt: number, speedFrac: number): void;
   setNameplate(name: string, hpFrac: number, isAi: boolean): void;
+  /** The floating name/HP billboard — exclude from glow layers or it blooms. */
+  plate: Mesh;
   setWeapon(weaponId: string | null, buildWeapon: (id: string) => Mesh | null): void;
   setVisibility(v: number): void;
   setHeadScale(s: number): void;
@@ -838,7 +840,7 @@ export function createCharacter(
   plateMat.useAlphaFromDiffuseTexture = true;
   plateMat.disableLighting = true;
   plateMat.backFaceCulling = false;
-  const plate = MeshBuilder.CreatePlane("plate", { width: 1.9, height: 0.475 }, scene);
+  const plate = MeshBuilder.CreatePlane("plate", { width: 2.25, height: 0.56 }, scene);
   plate.material = plateMat;
   plate.parent = root;
   plate.position.y = 2.3 * Math.max(1, body.headScale * 0.82);
@@ -865,15 +867,20 @@ export function createCharacter(
     ctx.strokeStyle = "#fff";
     ctx.lineWidth = 4;
     drawIcon(ctx, color.icon, 84, 35, 20);
-    // hp bar
-    ctx.fillStyle = "rgba(10,8,24,0.72)";
+    // hp bar — big, bordered, readable from spectator distance on a phone
+    ctx.fillStyle = "rgba(10,8,24,0.82)";
     ctx.beginPath();
-    ctx.roundRect(96, 76, 320, 30, 15);
+    ctx.roundRect(64, 72, 384, 44, 20);
     ctx.fill();
-    const hpColor = hpFrac > 0.5 ? "#4ed24e" : hpFrac > 0.25 ? "#e8b23a" : "#e23d3d";
+    ctx.strokeStyle = "rgba(255,255,255,0.85)";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.roundRect(64, 72, 384, 44, 20);
+    ctx.stroke();
+    const hpColor = hpFrac > 0.5 ? "#4ed24e" : hpFrac > 0.25 ? "#ffd23f" : "#ff4c4c";
     ctx.fillStyle = hpColor;
     ctx.beginPath();
-    ctx.roundRect(102, 82, Math.max(6, 308 * hpFrac), 18, 9);
+    ctx.roundRect(70, 78, Math.max(8, 372 * hpFrac), 32, 14);
     ctx.fill();
     plateTex.update();
   };
@@ -1031,6 +1038,7 @@ export function createCharacter(
     setAnim,
     update,
     setNameplate,
+    plate,
     setWeapon: (weaponId, buildWeapon) => {
       currentWeaponMesh?.dispose();
       currentWeaponMesh = null;
