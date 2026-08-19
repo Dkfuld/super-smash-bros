@@ -38,7 +38,7 @@ export function createGameScene(canvas: HTMLCanvasElement, q: QualityParams): Ga
   // Broadcast-grade grade: tone mapping, punchier contrast, purple vignette.
   const ipc = scene.imageProcessingConfiguration;
   ipc.toneMappingEnabled = true;
-  ipc.contrast = 1.25;
+  ipc.contrast = 1.3;
   ipc.exposure = 1.12;
   ipc.vignetteEnabled = true;
   ipc.vignetteWeight = 2.4;

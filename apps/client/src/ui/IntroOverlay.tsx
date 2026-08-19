@@ -54,10 +54,17 @@ export function IntroOverlay({
               speak: `And now, trudging out of the tunnel in the dunce cap they earned... last season's biggest disappointment: ${loserName}! Look at them. LOOK AT THEM.`,
               mood: "roast" as const,
             },
+            {
+              at: 12.8,
+              h1: "🐢 STILL WALKING…",
+              h2: "SHAME HAS NO HURRY",
+              speak: `Still walking. Take your time, ${loserName}. The shame walks with you.`,
+              mood: "roast" as const,
+            },
           ]
         : []),
       {
-        at: loserName ? 13.4 : 7.6,
+        at: loserName ? 17.4 : 7.6,
         h1: "IT'S DRAFT NIGHT",
         h2: "KICKOFF!",
         speak: "Enough talk. It's draft night. KICKOFF!",
@@ -69,10 +76,10 @@ export function IntroOverlay({
         window.setTimeout(() => {
           setCard(c);
           if (c.speak) audio.speak(c.speak, "announcer", "excited");
-          if (c.mood === "roast" && loserName) {
+          if (c.h1.includes("WALK OF SHAME") && loserName) {
             const w = getWorld();
-            if (loserId) w?.startLoserEntrance(loserId, 5.4);
-            w?.startIntroFlyby(`${loserName} FINISHED DEAD LAST`, 5.4);
+            if (loserId) w?.startLoserEntrance(loserId, 9.2);
+            w?.startIntroFlyby(`${loserName} FINISHED DEAD LAST`, 8.4);
           }
         }, c.at * 1000),
       );

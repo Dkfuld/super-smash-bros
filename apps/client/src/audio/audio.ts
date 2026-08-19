@@ -168,8 +168,12 @@ class AudioEngine {
     const u = new SpeechSynthesisUtterance(text);
     u.volume = vol * settings.masterVolume;
     if (kind === "announcer") {
-      u.pitch = 0.85;
-      u.rate = 1.15;
+      // Sultry ring-announcer read: a warm female voice where the device has
+      // one, pitched low and taken slow.
+      const v = this.pickAnnouncerVoice();
+      if (v) u.voice = v;
+      u.pitch = 0.8;
+      u.rate = 0.97;
     } else {
       const styles: Record<string, [number, number]> = {
         excited: [1.9, 1.4], nervous: [1.7, 1.7], exhausted: [1.2, 0.7],
@@ -198,6 +202,84 @@ class AudioEngine {
     if ("speechSynthesis" in window) speechSynthesis.cancel();
   }
 
+  /** Stadium boo: a ragged cluster of low descending saws + crowd noise. */
+  boo(): void {
+    if (!this.ctx || !this.sfxGain || settings.muted) return;
+    const t0 = this.ctx.currentTime;
+    for (let i = 0; i < 5; i++) {
+      const osc = this.ctx.createOscillator();
+      const g = this.ctx.createGain();
+      osc.type = "sawtooth";
+      const f = 92 + Math.random() * 40;
+      osc.frequency.setValueAtTime(f, t0 + i * 0.05);
+      osc.frequency.exponentialRampToValueAtTime(f * 0.82, t0 + i * 0.05 + 0.9);
+      g.gain.setValueAtTime(0.0001, t0 + i * 0.05);
+      g.gain.exponentialRampToValueAtTime(0.045, t0 + i * 0.05 + 0.15);
+      g.gain.exponentialRampToValueAtTime(0.001, t0 + i * 0.05 + 1.0);
+      osc.connect(g);
+      g.connect(this.sfxGain);
+      osc.start(t0 + i * 0.05);
+      osc.stop(t0 + i * 0.05 + 1.05);
+    }
+    this.noise({ dur: 1.1, vol: 0.04, filterFreq: 600 });
+  }
+
+  /** Womp womp womp woooomp. */
+  sadTrombone(): void {
+    if (!this.ctx || !this.sfxGain || settings.muted) return;
+    const t0 = this.ctx.currentTime;
+    const notes: Array<[number, number, number]> = [
+      [293.7, 0, 0.4], [277.2, 0.45, 0.4], [261.6, 0.9, 0.4], [233.1, 1.35, 1.3],
+    ];
+    for (const [freq, at, dur] of notes) {
+      const osc = this.ctx.createOscillator();
+      const g = this.ctx.createGain();
+      const lp = this.ctx.createBiquadFilter();
+      lp.type = "lowpass";
+      lp.frequency.value = 900;
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(freq * 0.97, t0 + at);
+      osc.frequency.exponentialRampToValueAtTime(freq, t0 + at + 0.08);
+      if (dur > 1) {
+        // wobble the long last note
+        const lfo = this.ctx.createOscillator();
+        const lfoG = this.ctx.createGain();
+        lfo.frequency.value = 5.5;
+        lfoG.gain.value = 6;
+        lfo.connect(lfoG);
+        lfoG.connect(osc.frequency);
+        lfo.start(t0 + at + 0.25);
+        lfo.stop(t0 + at + dur);
+      }
+      g.gain.setValueAtTime(0.0001, t0 + at);
+      g.gain.exponentialRampToValueAtTime(0.09, t0 + at + 0.05);
+      g.gain.exponentialRampToValueAtTime(0.001, t0 + at + dur);
+      osc.connect(lp);
+      lp.connect(g);
+      g.connect(this.sfxGain);
+      osc.start(t0 + at);
+      osc.stop(t0 + at + dur + 0.05);
+    }
+  }
+
+  private announcerVoice: SpeechSynthesisVoice | null | undefined;
+
+  private pickAnnouncerVoice(): SpeechSynthesisVoice | null {
+    if (this.announcerVoice !== undefined) return this.announcerVoice;
+    const voices = speechSynthesis.getVoices();
+    if (!voices.length) return null; // list not loaded yet — try again next line
+    const prefs = [/samantha/i, /victoria/i, /serena/i, /moira/i, /tessa/i, /karen/i, /zira/i, /female/i, /google uk english female/i];
+    for (const p of prefs) {
+      const v = voices.find((x) => p.test(x.name) && x.lang.toLowerCase().startsWith("en"));
+      if (v) {
+        this.announcerVoice = v;
+        return v;
+      }
+    }
+    this.announcerVoice = voices.find((x) => x.lang.toLowerCase().startsWith("en")) ?? null;
+    return this.announcerVoice;
+  }
+
   // ---------------- procedural music ----------------
 
   setMusic(track: "none" | "menu" | "arena" | "finalTwo" | "victory"): void {
@@ -209,9 +291,52 @@ class AudioEngine {
     }
     if (track === "none" || !this.ctx) return;
     this.musicStep = 0;
-    const tempo = track === "finalTwo" ? 105 : track === "victory" ? 130 : track === "arena" ? 122 : 96;
-    const stepMs = ((60 / tempo) * 1000) / 2;
+    // Arena runs a boom-bap hip-hop groove in 16th notes; other tracks keep
+    // the original 8th-note chiptune pulse.
+    const tempo = track === "finalTwo" ? 105 : track === "victory" ? 130 : track === "arena" ? 90 : 96;
+    const stepMs = track === "arena" ? ((60 / tempo) * 1000) / 4 : ((60 / tempo) * 1000) / 2;
     this.musicTimer = window.setInterval(() => this.musicTick(), stepMs);
+  }
+
+  /** 808-style kick: a sine that drops from thump to sub. */
+  private kick808(): void {
+    if (!this.ctx || !this.musicGain) return;
+    const t0 = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(150, t0);
+    osc.frequency.exponentialRampToValueAtTime(46, t0 + 0.16);
+    g.gain.setValueAtTime(0.5, t0);
+    g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.24);
+    osc.connect(g);
+    g.connect(this.musicGain);
+    osc.start(t0);
+    osc.stop(t0 + 0.26);
+  }
+
+  private snare(): void {
+    this.noise({ dur: 0.14, vol: 0.075, filterFreq: 2400 });
+    this.musicNote(196, 0.06, "triangle", 0.05);
+  }
+
+  /** Two-bar boom-bap loop: swung hats, lazy snare, subby bass riff. */
+  private hipHopTick(s: number): void {
+    const st = s % 32;
+    if ([0, 7, 10, 16, 20, 23].includes(st)) this.kick808();
+    if (st % 16 === 4 || st % 16 === 12) this.snare();
+    // hats: straight 8ths with accents + ghost 16ths for swing
+    if (st % 2 === 0) this.noise({ dur: 0.03, vol: st % 8 === 0 ? 0.034 : 0.02, filterFreq: 9000, hp: true });
+    else if ((st * 7) % 5 === 0) this.noise({ dur: 0.02, vol: 0.011, filterFreq: 9500, hp: true });
+    if (st === 14 || st === 30) this.noise({ dur: 0.12, vol: 0.028, filterFreq: 7500, hp: true }); // open hat
+    // bass riff riding the kicks (A minor pentatonic-ish)
+    const riff: Record<number, number> = { 0: 0, 7: 3, 10: 5, 16: 0, 20: 10, 23: 7 };
+    const deg = riff[st];
+    if (deg !== undefined) this.musicNote(55 * 2 ** (deg / 12), 0.32, "triangle", 0.24);
+    // sparse silly stabs answering the snare
+    if (st === 6) this.musicNote(440 * 2 ** (3 / 12), 0.09, "square", 0.028);
+    if (st === 22) this.musicNote(440 * 2 ** (5 / 12), 0.09, "square", 0.028);
+    if (st === 28) this.musicNote(440 * 2 ** (10 / 12), 0.12, "square", 0.024);
   }
 
   private musicNote(freq: number, dur: number, type: OscillatorType, vol: number): void {
@@ -235,6 +360,10 @@ class AudioEngine {
       return;
     }
     const s = this.musicStep++;
+    if (this.musicTrack === "arena") {
+      this.hipHopTick(s);
+      return;
+    }
     const minor = [0, 2, 3, 5, 7, 8, 10];
     const major = [0, 2, 4, 5, 7, 9, 11];
     const scale = this.musicTrack === "finalTwo" ? minor : major;
@@ -252,8 +381,8 @@ class AudioEngine {
       const octave = this.musicTrack === "victory" ? 4 : 3;
       this.musicNote(root * 2 ** (((scale[deg % 7] ?? 0) + 12 * (octave - 1) + (deg >= 7 ? 12 : 0)) / 12), 0.15, "square", 0.05);
     }
-    // Hat-ish tick
-    if (this.musicTrack === "arena" || this.musicTrack === "finalTwo") {
+    // Hat-ish tick (arena has its own hip-hop hats and returns early above)
+    if (this.musicTrack === "finalTwo") {
       this.noise({ dur: 0.03, vol: 0.02, filterFreq: 8000, hp: true });
     }
   }

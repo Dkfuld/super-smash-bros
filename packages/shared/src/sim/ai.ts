@@ -9,7 +9,6 @@ export interface AiTraits {
   weaponLust: number;
   hazardFear: number;
   revenge: number;
-  hatHunter: number;
   showboat: number;
   camper: number;
 }
@@ -25,7 +24,7 @@ const TRAIT_ARCHETYPES: Array<Partial<AiTraits> & { name: string }> = [
   { name: "Reckless", hazardFear: 0.05, aggression: 0.85 },
   { name: "Bush Camper", camper: 0.95, caution: 0.7 },
   { name: "Showboat", showboat: 0.9 },
-  { name: "Last-Place Hunter", hatHunter: 0.95 },
+  { name: "Frontrunner", aggression: 0.75, caution: 0.3 },
   { name: "Legendary-Weapon Obsessed", weaponLust: 0.9, aggression: 0.5 },
 ];
 
@@ -63,7 +62,6 @@ export class AiController {
       weaponLust: arch.weaponLust ?? r(),
       hazardFear: arch.hazardFear ?? this.rng.range(0.4, 0.9),
       revenge: arch.revenge ?? r(),
-      hatHunter: arch.hatHunter ?? this.rng.range(0, 0.3),
       showboat: arch.showboat ?? r(),
       camper: arch.camper ?? r(),
     };
@@ -227,7 +225,8 @@ export class AiController {
       if (bored) s += 0.8;
       s += (1 - e.hp / e.maxHp) * 0.2; // mild finisher instinct — no dogpiling one victim
       if (e.id === this.grudge) s += this.traits.revenge * 0.7;
-      if (e.hat) s += this.traits.hatHunter * 0.8;
+      // NOTE: no hat-player targeting bias — wearing the dunce cap is a
+      // cosmetic roast, never a gameplay handicap. Fairness is the product.
       if (me.weapon) s += 0.25;
       if (s > bestScore) { bestScore = s; bestMode = "hunt"; bestTarget = e; }
     }

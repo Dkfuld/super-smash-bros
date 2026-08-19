@@ -224,6 +224,9 @@ export function buildArena(scene: Scene, layout: ArenaLayout, q: QualityParams):
     ctx.fillRect(0, 0, 1024, 1024);
     floorTex.update();
   }
+  // Anisotropic filtering keeps the yard lines crisp at broadcast angles
+  // instead of smearing into mush toward the horizon.
+  floorTex.anisotropicFilteringLevel = 8;
   const floorMat = new StandardMaterial("floorMat", scene);
   floorMat.diffuseTexture = floorTex;
   floorMat.specularColor = new Color3(0.05, 0.07, 0.04); // turf, not gym varnish

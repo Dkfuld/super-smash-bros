@@ -284,10 +284,15 @@ export class GameWorld {
    * Client-side only — the sim isn't ticking yet, so rigs are free to move;
    * the first real snapshot snaps everyone to their true spawns.
    */
-  startLoserEntrance(loserId: string, durationSec = 5): void {
+  private entranceNextBooAt = 0;
+  private entranceNextTomatoAt = 0;
+
+  startLoserEntrance(loserId: string, durationSec = 9): void {
     const e = this.fighters.get(loserId);
     if (!e) return;
     this.entrance = { id: loserId, start: this.t, dur: durationSec };
+    this.entranceNextBooAt = this.t + 0.8;
+    this.entranceNextTomatoAt = this.t + 1.4;
     e.rig.root.position.set(-22.2, 0, -22.2); // helmet tunnel mouth
   }
 
@@ -296,21 +301,43 @@ export class GameWorld {
     const p = (this.t - this.entrance.start) / this.entrance.dur;
     const e = this.fighters.get(this.entrance.id);
     if (!e || p >= 1) {
+      if (this.entrance) audio.sadTrombone(); // cap the walk with a womp womp
       this.entrance = null;
       return;
     }
-    // Trudge from the tunnel toward midfield, slow and ashamed.
+    // A long, humiliating trudge: shuffle out, stop mid-walk to absorb the
+    // boos with a slow head-hung turn, then shuffle the rest of the way.
     const from = { x: -22.2, z: -22.2 };
-    const to = { x: -11, z: -11 };
-    const x = from.x + (to.x - from.x) * p;
-    const z = from.z + (to.z - from.z) * p;
+    const to = { x: -8.5, z: -8.5 };
+    let seg: number; // 0..1 along the path
+    let walking = true;
+    if (p < 0.38) seg = (p / 0.38) * 0.45;
+    else if (p < 0.6) {
+      seg = 0.45; // the pause of shame
+      walking = false;
+    } else seg = 0.45 + ((p - 0.6) / 0.4) * 0.55;
+    const x = from.x + (to.x - from.x) * seg;
+    const z = from.z + (to.z - from.z) * seg;
     e.rig.root.position.set(x, 0, z);
-    e.rig.root.rotation.y = Math.atan2(to.x - from.x, to.z - from.z);
-    if (e.lastAnim !== "run") {
-      e.lastAnim = "run";
-      e.rig.setAnim("run");
+    e.rig.root.rotation.y = walking
+      ? Math.atan2(to.x - from.x, to.z - from.z)
+      : Math.atan2(to.x - from.x, to.z - from.z) + Math.sin(this.t * 1.2) * 0.6; // slow disbelieving look around
+    const anim = walking ? "run" : "idle";
+    if (e.lastAnim !== anim) {
+      e.lastAnim = anim;
+      e.rig.setAnim(anim);
     }
-    e.rig.update(0.016, 0.3);
+    e.rig.update(0.016, walking ? 0.22 : 0);
+    // The crowd lets them have it: rolling boos + lobbed tomatoes.
+    if (this.t > this.entranceNextBooAt) {
+      this.entranceNextBooAt = this.t + 2.2 + Math.random();
+      audio.boo();
+    }
+    if (this.t > this.entranceNextTomatoAt) {
+      this.entranceNextTomatoAt = this.t + 1.1 + Math.random() * 0.9;
+      const off = new Vector3((Math.random() - 0.5) * 3, 0.4, (Math.random() - 0.5) * 3);
+      this.effects.bloodSpray(new Vector3(x, 0, z).add(off), 0.3); // splat!
+    }
     // The rest of the league turns to point and laugh (little mocking hops).
     for (const [id, o] of this.fighters) {
       if (id === this.entrance.id) continue;
@@ -451,6 +478,7 @@ export class GameWorld {
         case "hit": {
           const pos = new Vector3(ev.x, ev.y, ev.z);
           this.effects.hit(pos, ev.heavy);
+          if (ev.heavy && ev.damage >= 14) this.effects.bloodSpray(pos, 0.35); // heavy shots draw blood
           this.effects.damageNumber(pos.add(new Vector3(0, 0.6, 0)), ev.damage, ev.heavy);
           const w = ev.weapon;
           audio.play(w && this.tryWeaponAudio(w) ? this.tryWeaponAudio(w)! : ev.heavy ? "heavyHit" : "hit");
