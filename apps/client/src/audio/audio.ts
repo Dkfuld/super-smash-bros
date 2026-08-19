@@ -152,8 +152,40 @@ class AudioEngine {
 
   // ---------------- voice (announcer + yippee) ----------------
 
+  /** The announcer's studio-recorded lines (Piper TTS · LibriTTS · CC BY 4.0),
+   *  bundled at build time. Anything not in here falls back to device TTS. */
+  private static readonly VOICE_FILES = import.meta.glob("../assets/voice/*.mp3", {
+    eager: true,
+    query: "?url",
+    import: "default",
+  }) as Record<string, string>;
+
+  private currentLine: HTMLAudioElement | null = null;
+
+  /** Play a pre-recorded announcer line by id; falls back to speech synthesis. */
+  speakLine(id: string, fallbackText: string): void {
+    if (settings.muted) return;
+    const vol = settings.announcerVolume * settings.masterVolume;
+    if (vol <= 0.01) return;
+    const url = AudioEngine.VOICE_FILES[`../assets/voice/${id}.mp3`];
+    if (!url) {
+      this.speak(fallbackText, "announcer");
+      return;
+    }
+    const now = Date.now();
+    if (now - this.lastVoiceAt < 1200) return;
+    this.lastVoiceAt = now;
+    this.currentLine?.pause();
+    const el = new Audio(url);
+    el.volume = Math.min(1, vol);
+    this.currentLine = el;
+    void el.play().catch(() => this.speak(fallbackText, "announcer"));
+  }
+
   speak(text: string, kind: "announcer" | "yippee", variant = "excited"): void {
     if (settings.muted) return;
+    // Never talk over a recorded line — she finishes her sentences.
+    if (kind === "announcer" && this.currentLine && !this.currentLine.paused && !this.currentLine.ended) return;
     const vol = kind === "announcer" ? settings.announcerVolume : settings.voiceVolume;
     if (vol <= 0.01) return;
     if (!("speechSynthesis" in window)) {
@@ -200,6 +232,8 @@ class AudioEngine {
   /** Cut off any queued/playing speech immediately (e.g. intro skipped). */
   stopSpeech(): void {
     if ("speechSynthesis" in window) speechSynthesis.cancel();
+    this.currentLine?.pause();
+    this.currentLine = null;
   }
 
   /** Stadium boo: a ragged cluster of low descending saws + crowd noise. */

@@ -667,7 +667,12 @@ export class GameWorld {
         }
         case "zoneStage":
           audio.play("zoneShrink");
-          this.say(`The walls are moving in — nowhere left to hide!`, 8);
+          if (this.t - this.lastLineAt >= 8) {
+            this.lastLineAt = this.t;
+            this.nextFillerAt = this.t + 13;
+            audio.speakLine("zonewarn", "The walls are moving in — nowhere left to hide!");
+            this.notice({ kind: "caption", text: "The walls are moving in — nowhere left to hide!", mood: "excited" });
+          }
           break;
         case "yippee": {
           const name = this.nameOf(ev.playerId);
@@ -697,6 +702,7 @@ export class GameWorld {
             const [a, b] = alive;
             if (a && b) this.notice({ kind: "finalTwo", names: [this.nameOf(a.id), this.nameOf(b.id)] });
           } else if (ev.phase === "suddenDeath") {
+            audio.speakLine("suddendeath", "Sudden death! The Dome has lost its patience!");
             audio.play("alarmBuzz");
           }
           break;

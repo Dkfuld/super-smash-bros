@@ -67,3 +67,9 @@ docs/            architecture · networking · mobile-performance · asset-pipel
 
 See **docs/known-limitations.md** for an honest status report and
 **docs/roadmap.md** for what's next.
+
+## Credits
+
+- Announcer voice lines generated locally with [Piper TTS](https://github.com/rhasspy/piper)
+  (MIT) using the `en-us-libritts-high` voice, trained on
+  [LibriTTS](http://www.openslr.org/60/) — CC BY 4.0.

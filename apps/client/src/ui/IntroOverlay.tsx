@@ -8,6 +8,8 @@ interface Beat {
   h2?: string;
   lower?: string; // small lower-third strip instead of a big card
   speak?: string;
+  /** id of a studio-recorded line (assets/voice) — speak is the TTS fallback */
+  lineId?: string;
   mood?: "roast";
   cue?: "walk" | "penance";
 }
@@ -62,12 +64,14 @@ export function IntroOverlay({
         at: 0.8,
         h1: "🎆 WELCOME TO THE 2026 SMASH DOME SEASON",
         h2: league,
+        lineId: "welcome",
         speak:
           "Goooood evening, and welcome to the 2026 Smash Dome season! Alright boys — best of luck on your season. You are absolutely going to need it.",
       },
       {
         at: 7.4,
         lower: "THE DRAFT ORDER BATTLE — 12 ENTER, 1 PICKS FIRST",
+        lineId: "tonight",
         speak: "Tonight, twelve so-called managers put their bodies and their dignity on the line for draft position. Most of you ran out of dignity in October.",
       },
       ...victims.map((n, i) => {
@@ -77,6 +81,7 @@ export function IntroOverlay({
       {
         at: 24,
         lower: "MAY THE ODDS BE FOREVER IN YOUR FAVOR (they will not be)",
+        lineId: "odds",
         speak: "May the odds be forever in your favor. Statistically speaking... they will not be.",
       },
       ...(loserName
@@ -85,6 +90,7 @@ export function IntroOverlay({
               at: 27.5,
               h1: "🧌 THE WALK OF SHAME",
               h2: loserName,
+              lineId: "walkshame",
               speak: `And now, trudging out of the tunnel in the dunce cap they earned... last season's biggest disappointment: ${loserName}! Look at them. LOOK AT THEM.`,
               mood: "roast" as const,
               cue: "walk" as const,
@@ -92,12 +98,14 @@ export function IntroOverlay({
             {
               at: 33.5,
               lower: `🐢 Still walking. Shame has no hurry, ${loserName}.`,
+              lineId: "stillwalking",
               speak: `Still walking. Take your time, ${loserName}. The shame walks with you.`,
               mood: "roast" as const,
             },
             {
               at: 37,
               // no text — the ritual speaks for itself
+              lineId: "penance",
               speak: `And now, league law: five air squats, one jump of delusional hope... and the word. Say the word, ${loserName}.`,
               mood: "roast" as const,
               cue: "penance" as const,
@@ -107,6 +115,7 @@ export function IntroOverlay({
       {
         at: loserName ? 44.5 : 27.5,
         h1: "KICKOFF!",
+        lineId: "kickoff",
         speak: "Enough foreplay. It's draft night. KICKOFF!",
       },
     ];
@@ -115,7 +124,8 @@ export function IntroOverlay({
       timers.push(
         window.setTimeout(() => {
           setBeat(b);
-          if (b.speak) audio.speak(b.speak, "announcer", "excited");
+          if (b.lineId) audio.speakLine(b.lineId, b.speak ?? "");
+          else if (b.speak) audio.speak(b.speak, "announcer", "excited");
           const w = getWorld();
           if (b.cue === "walk" && loserId) {
             w?.startLoserEntrance(loserId, 9.4);
