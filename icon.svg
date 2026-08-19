@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#35206e"/>
+      <stop offset="1" stop-color="#12082b"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffe9a3"/>
+      <stop offset="1" stop-color="#ff9d3f"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="url(#bg)"/>
+  <ellipse cx="64" cy="86" rx="44" ry="14" fill="#1d1040" stroke="#ff5f9e" stroke-width="3"/>
+  <circle cx="64" cy="52" r="22" fill="#f2c79b"/>
+  <circle cx="56" cy="48" r="4" fill="#221a10"/>
+  <circle cx="72" cy="48" r="4" fill="#221a10"/>
+  <path d="M54 60 Q64 68 74 60" stroke="#5a2a1a" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <g transform="translate(64 24)">
+    <rect x="-3" y="-8" width="6" height="10" rx="2" fill="#ccc"/>
+    <g>
+      <rect x="-20" y="-12" width="16" height="5" rx="2" fill="#ff3b3b" transform="rotate(0)"/>
+      <rect x="4" y="-12" width="16" height="5" rx="2" fill="#3b8bff"/>
+      <rect x="-20" y="-6" width="16" height="5" rx="2" fill="#43d94e" transform="rotate(-20 0 0)"/>
+      <rect x="4" y="-6" width="16" height="5" rx="2" fill="#ffe83b" transform="rotate(20 0 0)"/>
+    </g>
+    <circle r="4" fill="#fff"/>
+  </g>
+  <text x="64" y="118" text-anchor="middle" font-family="system-ui,sans-serif" font-weight="900" font-size="14" fill="url(#gold)">DOME</text>
+</svg>
