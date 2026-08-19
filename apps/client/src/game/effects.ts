@@ -100,7 +100,7 @@ export class EffectsManager {
 
   /** Cartoon gore: dark-red droplets (standard blend — additive turns orange). */
   bloodSpray(pos: Vector3, intensity = 1): void {
-    const count = Math.max(8, Math.round(90 * intensity * this.particleScale * (settings.flashReduction ? 0.5 : 1)));
+    const count = Math.max(8, Math.round(120 * intensity * this.particleScale * (settings.flashReduction ? 0.5 : 1)));
     const ps = new ParticleSystem("blood", count, this.scene);
     ps.particleTexture = this.flareTex;
     ps.emitter = pos.clone();
@@ -124,7 +124,7 @@ export class EffectsManager {
     ps.targetStopDuration = 0.05;
     // Meaty chunks on full-strength sprays — rated-cartoon-R.
     if (intensity >= 0.8 && !settings.flashReduction) {
-      const chunks = Math.max(6, Math.round(14 * this.particleScale));
+      const chunks = Math.max(8, Math.round(20 * this.particleScale));
       const cs = new ParticleSystem("gibs", chunks, this.scene);
       cs.particleTexture = this.flareTex;
       cs.emitter = pos.clone();
@@ -177,7 +177,7 @@ export class EffectsManager {
       }
     }
     // cap the pool so long matches don't accumulate meshes
-    if (this.decals.length >= 14) {
+    if (this.decals.length >= 18) {
       const old = this.decals.shift();
       old?.mesh.dispose(false, true);
     }

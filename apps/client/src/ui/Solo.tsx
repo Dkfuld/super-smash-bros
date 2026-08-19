@@ -351,7 +351,7 @@ function SoloMatch({ cfg, autoStart, onExit, onRematch }: { cfg: SoloConfig; aut
     gamesRef.current = [...gamesRef.current, r];
     if (!cfg.series) {
       setResults(r);
-      setTimeout(() => setShowResults(true), 7000); // let the victory scene breathe
+      setTimeout(() => setShowResults(true), 13000); // victory beat + podium ceremony
       return;
     }
     const played = gamesRef.current.length;
@@ -384,13 +384,13 @@ function SoloMatch({ cfg, autoStart, onExit, onRematch }: { cfg: SoloConfig; aut
           }, 4600);
         }, 5000);
       } else {
-        setTimeout(() => setSeriesRows(rows), 6000);
+        setTimeout(() => setSeriesRows(rows), 12000);
       }
       return;
     }
     // Tiebreaker done — final combined order.
     const { rows } = aggregateSeries(gamesRef.current.slice(0, 3), r);
-    setTimeout(() => setSeriesRows(rows), 6000);
+    setTimeout(() => setSeriesRows(rows), 12000);
   };
 
   useEffect(() => {
@@ -414,7 +414,6 @@ function SoloMatch({ cfg, autoStart, onExit, onRematch }: { cfg: SoloConfig; aut
       match.drainEvents();
       match.hostSkipIntro();
     }
-    audio.setMusic("arena");
     return () => {
       matchRef.current = null;
       audio.setMusic("none");
@@ -433,6 +432,8 @@ function SoloMatch({ cfg, autoStart, onExit, onRematch }: { cfg: SoloConfig; aut
     if (!started || !introDone || interlude !== null || seriesRows !== null) return;
     // Local loopback: GameView's world registers its snapshot/event handlers on
     // the connection singleton; we feed it directly from the in-browser sim.
+    // The beat waits for kickoff — the intro belongs to the announcer alone.
+    audio.setMusic("arena");
     let tickCount = 0;
     const timer = window.setInterval(() => {
       const match = matchRef.current;

@@ -1,4 +1,4 @@
-import { FreeCamera, Mesh, Vector3 } from "@babylonjs/core";
+import { Color3, FreeCamera, Mesh, MeshBuilder, StandardMaterial, Vector3 } from "@babylonjs/core";
 import {
   DISASTER_DOME,
   SIM,
@@ -294,6 +294,69 @@ export class GameWorld {
   private penance: { id: string; start: number } | null = null;
   private penanceYippeed = false;
   private nextFireworkAt = 0.6;
+  private ceremonyAt = -1;
+  private ceremonyIds: string[] = [];
+  private ceremony: { start: number; ids: string[] } | null = null;
+  private ceremonyNextFireworkAt = 0;
+
+  /**
+   * Medal ceremony: podium steps rise at midfield, the top three finishers
+   * take their places, medals appear, fireworks pop, the announcer sends
+   * everyone home. Runs during the victory phase before the results screen.
+   */
+  private updateCeremony(dt: number): void {
+    void dt;
+    if (this.ceremony === null) {
+      if (this.ceremonyAt < 0 || this.t < this.ceremonyAt || this.ceremonyIds.length === 0) return;
+      // Build the podium: gold center (pick 1), silver left, bronze right.
+      const scene = this.gs.scene;
+      const steps: Array<[number, number, string, string]> = [
+        [0, 1.7, "#ffd23f", "🥇"], [-2.4, 1.15, "#cfd6e2", "🥈"], [2.4, 0.75, "#c77b3f", "🥉"],
+      ];
+      const medalColors = ["#ffd23f", "#cfd6e2", "#c77b3f"];
+      this.ceremony = { start: this.t, ids: this.ceremonyIds };
+      audio.speakLine("podium", "Your podium, gentlemen. Medals for the bold, draft picks for everyone else.");
+      this.ceremonyIds.forEach((id, i) => {
+        const step = steps[i];
+        const e = this.fighters.get(id);
+        if (!step || !e) return;
+        const [sx, sh, hex, emoji] = step;
+        const box = MeshBuilder.CreateBox(`podium${i}`, { width: 2, depth: 2, height: sh }, scene);
+        const m = new StandardMaterial(`podiumMat${i}`, scene);
+        m.diffuseColor = Color3.FromHexString(hex);
+        m.emissiveColor = Color3.FromHexString(hex).scale(0.22);
+        box.material = m;
+        box.position.set(sx, sh / 2, 0);
+        // Fighter takes the step: restore the rig (2nd/3rd exploded earlier).
+        e.rig.setVisibility(1);
+        e.rig.setAnim("idle");
+        e.rig.root.position.set(sx, sh, 0);
+        e.rig.root.rotation.y = Math.PI; // face the orbiting broadcast camera
+        e.rig.visual.scaling.y = 1;
+        e.rig.visual.position.y = 0;
+        // Medal: a fat disc on the chest in gold/silver/bronze.
+        const medal = MeshBuilder.CreateCylinder(`medal${i}`, { diameter: 0.26, height: 0.04 }, scene);
+        const mm = new StandardMaterial(`medalMat${i}`, scene);
+        mm.diffuseColor = Color3.FromHexString(medalColors[i] ?? "#ffd23f");
+        mm.emissiveColor = mm.diffuseColor.scale(0.5);
+        medal.material = mm;
+        medal.rotation.x = Math.PI / 2;
+        medal.parent = e.rig.visual;
+        medal.position.set(0, 0.9, 0.3);
+        this.notice({ kind: "feed", text: `${emoji} ${e.slot.name} — pick ${i + 1}` });
+      });
+      return;
+    }
+    const u = this.t - this.ceremony.start;
+    // Winner bounces on the top step; fireworks pop overhead.
+    const winner = this.fighters.get(this.ceremony.ids[0] ?? "");
+    if (winner) winner.rig.root.position.y = 1.7 + Math.abs(Math.sin(u * 5)) * 0.3;
+    if (this.t > this.ceremonyNextFireworkAt) {
+      this.ceremonyNextFireworkAt = this.t + 0.7 + Math.random() * 0.5;
+      this.effects.firework(new Vector3((Math.random() - 0.5) * 16, 12 + Math.random() * 5, (Math.random() - 0.5) * 12));
+      if (Math.random() < 0.4) audio.play("partyBoom");
+    }
+  }
 
   /** Opening-ceremony fireworks over the bowl while the camera dives in. */
   private updateFireworks(): void {
@@ -321,7 +384,7 @@ export class GameWorld {
     if (!this.penance) return;
     const e = this.fighters.get(this.penance.id);
     const u = this.t - this.penance.start;
-    if (!e || u >= 6.4) {
+    if (!e || u >= 8.2) {
       if (e) {
         e.rig.visual.scaling.y = 1;
         e.rig.visual.position.y = 0;
@@ -333,24 +396,27 @@ export class GameWorld {
     }
     // face the camera-ish (out toward midfield)
     e.rig.root.rotation.y = Math.atan2(8.5 - e.rig.root.position.x, 8.5 - e.rig.root.position.z);
-    if (u < 4.0) {
+    if (u < 1.6) {
+      // beat of dread while she reads the league law
+    } else if (u < 5.6) {
       // 5 squats @ 0.8s: deep knee bends via visual squash
-      const s = (u % 0.8) / 0.8;
+      const s = ((u - 1.6) % 0.8) / 0.8;
       const squat = 0.34 * Math.sin(Math.PI * s);
       e.rig.visual.scaling.y = 1 - squat;
       e.rig.visual.position.y = -squat * 0.55;
-    } else if (u < 5.4) {
+    } else if (u < 7.0) {
       // the high jump: parabola with a furious propeller flick at the top
       e.rig.visual.scaling.y = 1;
       e.rig.visual.position.y = 0;
-      const jt = (u - 4.0) / 1.4;
+      const jt = (u - 5.6) / 1.4;
       e.rig.root.position.y = Math.max(0, 4 * jt * (1 - jt)) * 2.2;
       // flick the fan: spin the propeller itself, hard
       const fan = e.rig.hat?.node.getChildTransformNodes(false).find((n) => n.name === "hatFan");
       if (fan) fan.rotation.y += dt * 30;
-      if (!this.penanceYippeed && jt > 0.4) {
+      if (!this.penanceYippeed && jt > 0.35) {
         this.penanceYippeed = true;
-        audio.speak("Yippee!", "yippee", "excited");
+        // Recorded squeak — landing right after she says "say the word"
+        audio.speakLine("yippee", "Yippee!");
         this.notice({ kind: "yippee", playerName: e.slot.name, variant: "excited" });
         this.effects.confetti(e.rig.root.position.add(new Vector3(0, 2, 0)), true);
       }
@@ -558,7 +624,7 @@ export class GameWorld {
         case "hit": {
           const pos = new Vector3(ev.x, ev.y, ev.z);
           this.effects.hit(pos, ev.heavy);
-          if (ev.heavy && ev.damage >= 14) this.effects.bloodSpray(pos, 0.35); // heavy shots draw blood
+          if (ev.heavy && ev.damage >= 10) this.effects.bloodSpray(pos, 0.5); // heavy shots draw blood
           this.effects.damageNumber(pos.add(new Vector3(0, 0.6, 0)), ev.damage, ev.heavy);
           const w = ev.weapon;
           audio.play(w && this.tryWeaponAudio(w) ? this.tryWeaponAudio(w)! : ev.heavy ? "heavyHit" : "hit");
@@ -713,6 +779,11 @@ export class GameWorld {
           if (ev.playerId === this.focusId) this.notice({ kind: "focusWin" });
           const e = this.fighters.get(ev.playerId);
           if (e) this.effects.confetti(e.rig.root.position.add(new Vector3(0, 3, 0)), true);
+          // Medal ceremony: pick 1 = winner, picks 2 & 3 = last two eliminated.
+          const podium = [ev.playerId, this.elimOrder[this.elimOrder.length - 1], this.elimOrder[this.elimOrder.length - 2]]
+            .filter((id): id is string => !!id);
+          this.ceremonyAt = this.t + 2.4;
+          this.ceremonyIds = podium;
           break;
         }
         case "propHit":
@@ -765,6 +836,7 @@ export class GameWorld {
     this.updateIntroFlyby();
     this.updateLoserEntrance();
     this.updateLoserPenance(dt);
+    this.updateCeremony(dt);
     this.updateFireworks();
     this.updateCommentary();
     this.effects.update(dt);
@@ -784,6 +856,9 @@ export class GameWorld {
       const b = e.next;
       if (!a || !b) continue;
       const isMe = id === this.myId;
+
+      // Ceremony owns its three fighters — snapshots keep their hands off.
+      if (this.ceremony && this.ceremony.ids.includes(id)) continue;
 
       // Dead fighters exploded at the elimination event: hide once and stop
       // animating entirely — no more tumbling ghosts, no spinning hats.
@@ -937,6 +1012,17 @@ export class GameWorld {
     let camPos: Vector3 | null = null;
 
     const phase = this.latestSnap?.phase ?? "lobby";
+    if (this.ceremony) {
+      // Slow broadcast orbit around the podium.
+      const orbit = this.t * 0.35;
+      target = new Vector3(0, 1.6, 0);
+      camPos = new Vector3(Math.sin(orbit) * 8.5, 3.4, Math.cos(orbit) * 8.5);
+      this.camTarget = Vector3.Lerp(this.camTarget, target, Math.min(1, dt * 5));
+      this.camera.position = Vector3.Lerp(this.camera.position, camPos, Math.min(1, dt * 4));
+      this.camera.setTarget(this.camTarget);
+      this.updateCamShake(dt);
+      return;
+    }
     if (phase === "finalTwo" || phase === "victory") {
       const alive = [...this.fighters.values()].filter((f) => f.next && !f.next.eliminated);
       if (alive.length >= 1) {

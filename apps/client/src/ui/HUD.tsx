@@ -69,14 +69,14 @@ export function HUD({ world, isPlayer }: { world: GameWorld; isPlayer: boolean }
             // entirely, or deaths look like nothing happened.
             const calm = settings.flashReduction;
             const id = feedId.current++;
-            const count = n.big ? (calm ? 6 : 14) : (calm ? 4 : 10);
+            const count = n.big ? (calm ? 6 : 18) : (calm ? 4 : 12);
             const blobs = Array.from({ length: count }, () => ({
               x: 4 + Math.random() * 92,
               y: 4 + Math.random() * 92,
               r: (n.big ? (calm ? 10 : 16) : (calm ? 7 : 13)) + Math.random() * (n.big ? (calm ? 10 : 22) : (calm ? 6 : 15)),
             }));
             setSplats((s) => [...s.slice(-2), { id, big: n.big && !calm, blobs }]);
-            setTimeout(() => setSplats((s) => s.filter((x) => x.id !== id)), n.big ? 1700 : 1400);
+            setTimeout(() => setSplats((s) => s.filter((x) => x.id !== id)), n.big ? 2100 : 1500);
             break;
           }
           case "koWord": {

@@ -113,7 +113,7 @@ export function IntroOverlay({
           ]
         : []),
       {
-        at: loserName ? 44.5 : 27.5,
+        at: loserName ? 46 : 27.5,
         h1: "KICKOFF!",
         lineId: "kickoff",
         speak: "Enough foreplay. It's draft night. KICKOFF!",
